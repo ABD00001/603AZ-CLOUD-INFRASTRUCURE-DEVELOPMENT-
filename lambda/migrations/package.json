@@ -1,1 +1,17 @@
-
+{
+  "name": "fairwork-pulse-database-migration",
+  "version": "1.0.0",
+  "description": "Database migration Lambda for the FairWork Pulse application",
+  "main": "index.js",
+  "private": true,
+  "engines": {
+    "node": "18.x"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "mysql2": "^3.0.0"
+  }
+}

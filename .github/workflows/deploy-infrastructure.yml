@@ -72,7 +72,7 @@ jobs:
               DatabaseInstanceClass=db.t3.micro \
               DatabaseAllocatedStorage=20 \
               BackupRetentionDays=7 \
-              CreateReadReplica=true \
+              CreateReadReplica=false \
               EnableDeletionProtection=false \
             --tags \
               Project=FairWorkPulse \

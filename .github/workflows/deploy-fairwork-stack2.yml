@@ -122,13 +122,13 @@ jobs:
 
             "${TEMPLATE_FILE}"
 
-            "lambdas/migration/index.js"
+            "lambda/migrations/index.js"
 
-            "lambdas/migration/package.json"
+            "lambdas/migrations/package.json"
 
             "database/migrations/V001__initial_schema.sql"
 
-            "database/migrations/V002__rule_based_moderation_policy.sql"
+            "database/migrations/V002__moderation_rules.sql"
 
           )
 
@@ -226,13 +226,13 @@ jobs:
           # ------------------------------------------------------------------
 
           cp \
-            lambdas/migration/index.js \
-            build/migration/index.js
+            lambda/migrations/index.js \
+            build/migrations/index.js
 
 
           cp \
-            lambdas/migration/package.json \
-            build/migration/package.json
+            lambda/migrations/package.json \
+            build/migrations/package.json
 
 
           # ------------------------------------------------------------------
@@ -245,7 +245,7 @@ jobs:
 
 
           cp \
-            database/migrations/V002__rule_based_moderation_policy.sql \
+            database/migrations/V002__moderation_rules.sql \
             build/migration/migrations/
 
 

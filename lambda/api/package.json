@@ -1,1 +1,12 @@
-
+{
+  "name": "fairwork-pulse-api",
+  "version": "1.0.0",
+  "description": "FairWork Pulse API Lambda for authenticated application access to Amazon RDS MySQL",
+  "main": "index.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "mysql2": "^3.0.0"
+  }
+}

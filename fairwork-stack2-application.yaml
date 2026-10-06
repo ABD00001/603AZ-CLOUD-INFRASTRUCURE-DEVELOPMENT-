@@ -1,1 +1,219 @@
+AWSTemplateFormatVersion: '2010-09-09'
 
+Description: >
+  FairWork Pulse Stack 2 - Database migration and connectivity.
+  Deploys a Node.js migration Lambda into the private application
+  subnets and connects it to the RDS MySQL database from Stack 1.
+
+# =============================================================================
+# PARAMETERS
+# =============================================================================
+
+Parameters:
+
+  ProjectName:
+    Type: String
+    Default: fairwork-pulse
+    Description: FairWork Pulse project name.
+
+  EnvironmentName:
+    Type: String
+    Default: poc
+    Description: Deployment environment.
+
+  InfrastructureStackName:
+    Type: String
+    Default: fairwork-infrastructure
+    Description: Name of the deployed Stack 1 infrastructure stack.
+
+  LambdaRuntime:
+    Type: String
+    Default: nodejs18.x
+    AllowedValues:
+      - nodejs18.x
+    Description: Runtime used by the Migration Lambda.
+
+  MigrationLambdaS3Key:
+    Type: String
+    Description: >
+      S3 object key containing the packaged Migration Lambda.
+
+  DeploymentVersion:
+    Type: String
+    Default: manual
+    Description: >
+      Deployment identifier. GitHub Actions supplies the commit SHA.
+
+
+# =============================================================================
+# RESOURCES
+# =============================================================================
+
+Resources:
+
+  # ===========================================================================
+  # DATABASE MIGRATION LAMBDA
+  # ===========================================================================
+
+  MigrationFunction:
+    Type: AWS::Lambda::Function
+
+    Properties:
+
+      FunctionName:
+        !Sub '${ProjectName}-${EnvironmentName}-database-migration'
+
+      Description: >
+        Applies version-controlled FairWork Pulse SQL migrations
+        to the private RDS MySQL database.
+
+      Runtime:
+        !Ref LambdaRuntime
+
+      Handler:
+        index.handler
+
+      # -----------------------------------------------------------------------
+      # EXISTING AWS ACADEMY ROLE
+      # -----------------------------------------------------------------------
+
+      Role:
+        Fn::ImportValue:
+          !Sub '${InfrastructureStackName}-LabRoleArn'
+
+      MemorySize:
+        256
+
+      Timeout:
+        120
+
+      ReservedConcurrentExecutions:
+        1
+
+      # -----------------------------------------------------------------------
+      # LAMBDA DEPLOYMENT PACKAGE
+      # -----------------------------------------------------------------------
+
+      Code:
+
+        S3Bucket:
+          Fn::ImportValue:
+            !Sub '${InfrastructureStackName}-LambdaArtifactBucketName'
+
+        S3Key:
+          !Ref MigrationLambdaS3Key
+
+      # -----------------------------------------------------------------------
+      # PRIVATE VPC CONFIGURATION
+      # -----------------------------------------------------------------------
+
+      VpcConfig:
+
+        SecurityGroupIds:
+
+          - Fn::ImportValue:
+              !Sub '${InfrastructureStackName}-LambdaSecurityGroupId'
+
+        SubnetIds:
+
+          - Fn::ImportValue:
+              !Sub '${InfrastructureStackName}-PrivateAppSubnetAId'
+
+          - Fn::ImportValue:
+              !Sub '${InfrastructureStackName}-PrivateAppSubnetBId'
+
+      # -----------------------------------------------------------------------
+      # DATABASE CONFIGURATION
+      # -----------------------------------------------------------------------
+
+      Environment:
+
+        Variables:
+
+          DB_HOST:
+            Fn::ImportValue:
+              !Sub '${InfrastructureStackName}-DatabaseEndpoint'
+
+          DB_PORT:
+            Fn::ImportValue:
+              !Sub '${InfrastructureStackName}-DatabasePort'
+
+          DB_NAME:
+            Fn::ImportValue:
+              !Sub '${InfrastructureStackName}-DatabaseName'
+
+          DB_SECRET_ARN:
+            Fn::ImportValue:
+              !Sub '${InfrastructureStackName}-DatabaseSecretArn'
+
+          DEPLOYMENT_VERSION:
+            !Ref DeploymentVersion
+
+      Tags:
+
+        - Key: Project
+          Value: FairWorkPulse
+
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+        - Key: Component
+          Value: DatabaseMigration
+
+
+  # ===========================================================================
+  # CLOUDWATCH LOG GROUP
+  # ===========================================================================
+
+  MigrationFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+
+    Properties:
+
+      LogGroupName:
+        !Sub '/aws/lambda/${ProjectName}-${EnvironmentName}-database-migration'
+
+      RetentionInDays:
+        14
+
+
+# =============================================================================
+# OUTPUTS
+# =============================================================================
+
+Outputs:
+
+  MigrationFunctionName:
+
+    Description: Name of the FairWork Pulse Migration Lambda.
+
+    Value:
+      !Ref MigrationFunction
+
+
+  MigrationFunctionArn:
+
+    Description: ARN of the FairWork Pulse Migration Lambda.
+
+    Value:
+      !GetAtt MigrationFunction.Arn
+
+
+  DatabaseEndpoint:
+
+    Description: >
+      Primary RDS endpoint imported from Stack 1.
+
+    Value:
+      Fn::ImportValue:
+        !Sub '${InfrastructureStackName}-DatabaseEndpoint'
+
+
+  DatabaseName:
+
+    Description: >
+      FairWork Pulse database name imported from Stack 1.
+
+    Value:
+      Fn::ImportValue:
+        !Sub '${InfrastructureStackName}-DatabaseName'

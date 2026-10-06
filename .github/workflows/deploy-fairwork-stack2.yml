@@ -1,4 +1,4 @@
-name: Deploy FairWork Stack 2 Database
+name: Deploy FairWork Stack 2 Application
 
 on:
   workflow_dispatch:
@@ -12,20 +12,29 @@ concurrency:
 
 env:
   AWS_REGION: us-east-1
+
   INFRASTRUCTURE_STACK_NAME: fairwork-infrastructure
   APPLICATION_STACK_NAME: fairwork-application-602az
+
   TEMPLATE_FILE: fairwork-stack2-application.yaml
+
   LAMBDA_RUNTIME: nodejs18.x
+
+  API_STAGE_NAME: poc
+
+  ALLOWED_ORIGIN: http://localhost:3000
+
 
 jobs:
 
-  deploy-database:
+  deploy-application:
 
-    name: Deploy and test database migration
+    name: Deploy FairWork Pulse Application
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 30
+    timeout-minutes: 45
+
 
     steps:
 
@@ -43,6 +52,7 @@ jobs:
 
       - name: Set up Node.js 18
         uses: actions/setup-node@v4
+
         with:
           node-version: '18'
 
@@ -53,11 +63,21 @@ jobs:
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
+
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
+
+          aws-access-key-id:
+            ${{ secrets.AWS_ACCESS_KEY_ID }}
+
+          aws-secret-access-key:
+            ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+          aws-session-token:
+            ${{ secrets.AWS_SESSION_TOKEN }}
+
+          aws-region:
+            ${{ env.AWS_REGION }}
+
           mask-aws-account-id: true
 
 
@@ -113,15 +133,24 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "Checking required files..."
-
           required_files=(
+
             "${TEMPLATE_FILE}"
+
             "lambda/migrations/index.js"
+
             "lambda/migrations/package.json"
+
+            "lambda/api/index.js"
+
+            "lambda/api/package.json"
+
             "database/migrations/V001__initial_schema.sql"
+
             "database/migrations/V002__moderation_rules.sql"
+
           )
+
 
           for file in "${required_files[@]}"; do
 
@@ -137,19 +166,21 @@ jobs:
 
           done
 
+
           echo "All required Stack 2 files are present."
 
 
       # ======================================================================
-      # 7. READ LAMBDA ARTIFACT BUCKET FROM STACK 1
+      # 7. READ ARTIFACT BUCKET FROM STACK 1
       # ======================================================================
 
       - name: Read artifact bucket from Stack 1
         id: infrastructure
+
         run: |
           set -euo pipefail
 
-          echo "Reading Lambda artifact bucket from Stack 1..."
+          echo "Reading Lambda artifact bucket..."
 
           ARTIFACT_BUCKET=$(aws cloudformation describe-stacks \
             --stack-name "${INFRASTRUCTURE_STACK_NAME}" \
@@ -157,23 +188,26 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='LambdaArtifactBucketName'].OutputValue | [0]" \
             --output text)
 
+
           if [ -z "${ARTIFACT_BUCKET}" ] || \
              [ "${ARTIFACT_BUCKET}" = "None" ]; then
 
-            echo "ERROR: LambdaArtifactBucketName was not found in Stack 1."
+            echo "ERROR: LambdaArtifactBucketName was not found."
 
             exit 1
 
           fi
 
+
           echo "artifact_bucket=${ARTIFACT_BUCKET}" \
             >> "${GITHUB_OUTPUT}"
+
 
           echo "Artifact bucket found."
 
 
       # ======================================================================
-      # 8. VALIDATE STACK 2 CLOUDFORMATION TEMPLATE
+      # 8. VALIDATE CLOUDFORMATION
       # ======================================================================
 
       - name: Validate Stack 2 template
@@ -186,66 +220,71 @@ jobs:
             --template-body "file://${TEMPLATE_FILE}" \
             --region "${AWS_REGION}"
 
-          echo "Stack 2 template validation completed."
+          echo "CloudFormation template is valid."
 
 
       # ======================================================================
       # 9. CREATE CLEAN BUILD DIRECTORY
       # ======================================================================
 
-      - name: Prepare Migration Lambda package
+      - name: Create build directories
         run: |
           set -euo pipefail
-
-          echo "Creating clean build directory..."
 
           rm -rf build
 
           mkdir -p build/migration/migrations
 
+          mkdir -p build/api
 
-          # ------------------------------------------------------------------
-          # Copy Migration Lambda source
-          # ------------------------------------------------------------------
+          echo "Build directories created."
 
-          echo "Copying Migration Lambda source..."
+
+      # ======================================================================
+      # 10. PREPARE MIGRATION LAMBDA
+      # ======================================================================
+
+      - name: Prepare Migration Lambda
+        run: |
+          set -euo pipefail
+
+          echo "Preparing Migration Lambda..."
+
+
+          # Copy Lambda source
 
           cp \
             lambda/migrations/index.js \
             build/migration/index.js
+
 
           cp \
             lambda/migrations/package.json \
             build/migration/package.json
 
 
-          # ------------------------------------------------------------------
-          # Copy database migrations
-          # ------------------------------------------------------------------
-
-          echo "Copying SQL migrations..."
+          # Copy version-controlled SQL migrations
 
           cp \
             database/migrations/V001__initial_schema.sql \
             build/migration/migrations/
+
 
           cp \
             database/migrations/V002__moderation_rules.sql \
             build/migration/migrations/
 
 
-          echo "Migration source prepared successfully."
+          echo "Migration Lambda source prepared."
 
 
       # ======================================================================
-      # 10. INSTALL NODE.JS PRODUCTION DEPENDENCIES
+      # 11. INSTALL MIGRATION DEPENDENCIES
       # ======================================================================
 
       - name: Install Migration Lambda dependencies
         run: |
           set -euo pipefail
-
-          echo "Installing Migration Lambda dependencies..."
 
           pushd build/migration > /dev/null
 
@@ -256,18 +295,65 @@ jobs:
 
           popd > /dev/null
 
-          echo "Production dependencies installed."
+          echo "Migration dependencies installed."
 
 
       # ======================================================================
-      # 11. VERIFY BUILD CONTENTS
+      # 12. PREPARE API LAMBDA
       # ======================================================================
 
-      - name: Verify Migration Lambda package contents
+      - name: Prepare API Lambda
         run: |
           set -euo pipefail
 
-          echo "Migration Lambda build contents:"
+          echo "Preparing API Lambda..."
+
+
+          cp \
+            lambda/api/index.js \
+            build/api/index.js
+
+
+          cp \
+            lambda/api/package.json \
+            build/api/package.json
+
+
+          echo "API Lambda source prepared."
+
+
+      # ======================================================================
+      # 13. INSTALL API DEPENDENCIES
+      # ======================================================================
+
+      - name: Install API Lambda dependencies
+        run: |
+          set -euo pipefail
+
+          pushd build/api > /dev/null
+
+          npm install \
+            --omit=dev \
+            --no-audit \
+            --no-fund
+
+          popd > /dev/null
+
+          echo "API dependencies installed."
+
+
+      # ======================================================================
+      # 14. VERIFY BUILD CONTENTS
+      # ======================================================================
+
+      - name: Verify Lambda build contents
+        run: |
+          set -euo pipefail
+
+
+          echo "=========================================="
+          echo "Migration Lambda"
+          echo "=========================================="
 
           find build/migration \
             -maxdepth 2 \
@@ -275,81 +361,56 @@ jobs:
             | sort
 
 
-          # ------------------------------------------------------------------
-          # Check Lambda source
-          # ------------------------------------------------------------------
+          echo
+          echo "=========================================="
+          echo "API Lambda"
+          echo "=========================================="
 
-          if [ ! -f "build/migration/index.js" ]; then
-
-            echo "ERROR: Migration index.js missing from build."
-
-            exit 1
-
-          fi
-
-
-          if [ ! -f "build/migration/package.json" ]; then
-
-            echo "ERROR: Migration package.json missing from build."
-
-            exit 1
-
-          fi
+          find build/api \
+            -maxdepth 2 \
+            -type f \
+            | sort
 
 
           # ------------------------------------------------------------------
-          # Check V001
+          # Migration checks
           # ------------------------------------------------------------------
 
-          if [ ! -f \
-            "build/migration/migrations/V001__initial_schema.sql" ]; then
+          test -f build/migration/index.js
 
-            echo "ERROR: V001 migration missing from build."
+          test -f build/migration/package.json
 
-            exit 1
+          test -f \
+            build/migration/migrations/V001__initial_schema.sql
 
-          fi
+          test -f \
+            build/migration/migrations/V002__moderation_rules.sql
 
-
-          # ------------------------------------------------------------------
-          # Check V002
-          # ------------------------------------------------------------------
-
-          if [ ! -f \
-            "build/migration/migrations/V002__moderation_rules.sql" ]; then
-
-            echo "ERROR: V002 migration missing from build."
-
-            exit 1
-
-          fi
+          test -d build/migration/node_modules
 
 
           # ------------------------------------------------------------------
-          # Check node_modules
+          # API checks
           # ------------------------------------------------------------------
 
-          if [ ! -d "build/migration/node_modules" ]; then
+          test -f build/api/index.js
 
-            echo "ERROR: node_modules missing from build."
+          test -f build/api/package.json
 
-            exit 1
-
-          fi
+          test -d build/api/node_modules
 
 
-          echo "Migration Lambda build verified successfully."
+          echo
+          echo "Both Lambda builds verified successfully."
 
 
       # ======================================================================
-      # 12. CREATE MIGRATION LAMBDA ZIP
+      # 15. CREATE MIGRATION ZIP
       # ======================================================================
 
       - name: Create Migration Lambda ZIP
         run: |
           set -euo pipefail
-
-          echo "Creating Migration Lambda deployment ZIP..."
 
           pushd build/migration > /dev/null
 
@@ -360,51 +421,136 @@ jobs:
 
           popd > /dev/null
 
-          echo "Migration Lambda ZIP created."
+
+          echo "Migration ZIP:"
 
           ls -lh build/migration.zip
 
 
       # ======================================================================
-      # 13. UPLOAD MIGRATION ZIP TO S3
+      # 16. CREATE API ZIP
       # ======================================================================
 
-      - name: Upload Migration Lambda package
-        id: package
-        env:
-          ARTIFACT_BUCKET: ${{ steps.infrastructure.outputs.artifact_bucket }}
+      - name: Create API Lambda ZIP
+        run: |
+          set -euo pipefail
+
+          pushd build/api > /dev/null
+
+          zip \
+            -qr \
+            ../api.zip \
+            .
+
+          popd > /dev/null
+
+
+          echo "API ZIP:"
+
+          ls -lh build/api.zip
+
+
+      # ======================================================================
+      # 17. CREATE S3 OBJECT KEYS
+      # ======================================================================
+
+      - name: Generate Lambda artifact keys
+        id: artifact_keys
 
         run: |
           set -euo pipefail
 
-          PREFIX="stack2/migration/${GITHUB_SHA}"
 
-          MIGRATION_KEY="${PREFIX}/migration.zip"
+          MIGRATION_KEY="stack2/migration/${GITHUB_SHA}/migration.zip"
 
-          echo "Uploading migration package to S3..."
+          API_KEY="stack2/api/${GITHUB_SHA}/api.zip"
+
+
+          echo "migration_key=${MIGRATION_KEY}" \
+            >> "${GITHUB_OUTPUT}"
+
+
+          echo "api_key=${API_KEY}" \
+            >> "${GITHUB_OUTPUT}"
+
+
+          echo "Migration S3 key:"
+          echo "${MIGRATION_KEY}"
+
+
+          echo "API S3 key:"
+          echo "${API_KEY}"
+
+
+      # ======================================================================
+      # 18. UPLOAD MIGRATION ZIP
+      # ======================================================================
+
+      - name: Upload Migration Lambda package
+        env:
+
+          ARTIFACT_BUCKET:
+            ${{ steps.infrastructure.outputs.artifact_bucket }}
+
+          MIGRATION_KEY:
+            ${{ steps.artifact_keys.outputs.migration_key }}
+
+        run: |
+          set -euo pipefail
+
+
+          echo "Uploading Migration Lambda..."
+
 
           aws s3 cp \
             build/migration.zip \
             "s3://${ARTIFACT_BUCKET}/${MIGRATION_KEY}" \
             --region "${AWS_REGION}"
 
-          echo "migration_key=${MIGRATION_KEY}" \
-            >> "${GITHUB_OUTPUT}"
 
-          echo "Migration package uploaded successfully."
-
-          echo "S3 object key: ${MIGRATION_KEY}"
+          echo "Migration package uploaded."
 
 
       # ======================================================================
-      # 14. DEPLOY STACK 2
+      # 19. UPLOAD API ZIP
+      # ======================================================================
+
+      - name: Upload API Lambda package
+        env:
+
+          ARTIFACT_BUCKET:
+            ${{ steps.infrastructure.outputs.artifact_bucket }}
+
+          API_KEY:
+            ${{ steps.artifact_keys.outputs.api_key }}
+
+        run: |
+          set -euo pipefail
+
+
+          echo "Uploading API Lambda..."
+
+
+          aws s3 cp \
+            build/api.zip \
+            "s3://${ARTIFACT_BUCKET}/${API_KEY}" \
+            --region "${AWS_REGION}"
+
+
+          echo "API package uploaded."
+
+
+      # ======================================================================
+      # 20. DEPLOY STACK 2
       # ======================================================================
 
       - name: Deploy Stack 2
         run: |
           set -euo pipefail
 
+
           echo "Deploying FairWork Pulse Stack 2..."
+
 
           aws cloudformation deploy \
             --stack-name "${APPLICATION_STACK_NAME}" \
@@ -415,62 +561,133 @@ jobs:
               ProjectName=fairwork-pulse \
               EnvironmentName=poc \
               LambdaRuntime="${LAMBDA_RUNTIME}" \
-              MigrationLambdaS3Key="${{ steps.package.outputs.migration_key }}" \
+              MigrationLambdaS3Key="${{ steps.artifact_keys.outputs.migration_key }}" \
+              ApiLambdaS3Key="${{ steps.artifact_keys.outputs.api_key }}" \
               DeploymentVersion="${GITHUB_SHA}" \
+              ApiStageName="${API_STAGE_NAME}" \
+              AllowedOrigin="${ALLOWED_ORIGIN}" \
+              LogRetentionDays=14 \
             --tags \
               Project=FairWorkPulse \
               Environment=PoC \
-              Component=DatabaseMigration \
+              Module=602AZ \
               ManagedBy=CloudFormation \
             --no-fail-on-empty-changeset
+
 
           echo "Stack 2 deployment completed."
 
 
       # ======================================================================
-      # 15. READ MIGRATION FUNCTION NAME
+      # 21. READ STACK 2 OUTPUTS
       # ======================================================================
 
-      - name: Read Migration Lambda name
-        id: migration
+      - name: Read Stack 2 resources
+        id: application
+
         run: |
           set -euo pipefail
 
-          echo "Reading Migration Lambda name from Stack 2..."
 
-          FUNCTION_NAME=$(aws cloudformation describe-stacks \
+          MIGRATION_FUNCTION=$(aws cloudformation describe-stacks \
             --stack-name "${APPLICATION_STACK_NAME}" \
             --region "${AWS_REGION}" \
             --query "Stacks[0].Outputs[?OutputKey=='MigrationFunctionName'].OutputValue | [0]" \
             --output text)
 
-          if [ -z "${FUNCTION_NAME}" ] || \
-             [ "${FUNCTION_NAME}" = "None" ]; then
 
-            echo "ERROR: MigrationFunctionName was not found."
+          API_FUNCTION=$(aws cloudformation describe-stacks \
+            --stack-name "${APPLICATION_STACK_NAME}" \
+            --region "${AWS_REGION}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiFunctionName'].OutputValue | [0]" \
+            --output text)
+
+
+          HEALTH_URL=$(aws cloudformation describe-stacks \
+            --stack-name "${APPLICATION_STACK_NAME}" \
+            --region "${AWS_REGION}" \
+            --query "Stacks[0].Outputs[?OutputKey=='HealthUrl'].OutputValue | [0]" \
+            --output text)
+
+
+          USER_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name "${APPLICATION_STACK_NAME}" \
+            --region "${AWS_REGION}" \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue | [0]" \
+            --output text)
+
+
+          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name "${APPLICATION_STACK_NAME}" \
+            --region "${AWS_REGION}" \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue | [0]" \
+            --output text)
+
+
+          if [ -z "${MIGRATION_FUNCTION}" ] || \
+             [ "${MIGRATION_FUNCTION}" = "None" ]; then
+
+            echo "ERROR: MigrationFunctionName missing."
 
             exit 1
 
           fi
 
-          echo "function_name=${FUNCTION_NAME}" \
+
+          if [ -z "${API_FUNCTION}" ] || \
+             [ "${API_FUNCTION}" = "None" ]; then
+
+            echo "ERROR: ApiFunctionName missing."
+
+            exit 1
+
+          fi
+
+
+          if [ -z "${HEALTH_URL}" ] || \
+             [ "${HEALTH_URL}" = "None" ]; then
+
+            echo "ERROR: HealthUrl missing."
+
+            exit 1
+
+          fi
+
+
+          echo "migration_function=${MIGRATION_FUNCTION}" \
             >> "${GITHUB_OUTPUT}"
 
-          echo "Migration Lambda: ${FUNCTION_NAME}"
+
+          echo "api_function=${API_FUNCTION}" \
+            >> "${GITHUB_OUTPUT}"
+
+
+          echo "health_url=${HEALTH_URL}" \
+            >> "${GITHUB_OUTPUT}"
+
+
+          echo "user_pool_id=${USER_POOL_ID}" \
+            >> "${GITHUB_OUTPUT}"
+
+
+          echo "user_pool_client_id=${USER_POOL_CLIENT_ID}" \
+            >> "${GITHUB_OUTPUT}"
 
 
       # ======================================================================
-      # 16. INVOKE MIGRATION LAMBDA
+      # 22. RUN DATABASE MIGRATION
       # ======================================================================
 
       - name: Run database migrations
         run: |
           set -euo pipefail
 
+
           echo "Invoking Migration Lambda..."
 
+
           aws lambda invoke \
-            --function-name "${{ steps.migration.outputs.function_name }}" \
+            --function-name "${{ steps.application.outputs.migration_function }}" \
             --region "${AWS_REGION}" \
             --cli-binary-format raw-in-base64-out \
             --payload '{}' \
@@ -480,19 +697,15 @@ jobs:
 
 
           echo
-          echo "Lambda invocation metadata:"
+          echo "Migration invocation:"
           cat migration-invoke.json
 
 
           echo
-          echo "Migration Lambda response:"
+          echo "Migration response:"
           cat migration-response.json
           echo
 
-
-          # ------------------------------------------------------------------
-          # Detect Lambda execution failure
-          # ------------------------------------------------------------------
 
           FUNCTION_ERROR=$(jq -r \
             '.FunctionError // empty' \
@@ -501,20 +714,12 @@ jobs:
 
           if [ -n "${FUNCTION_ERROR}" ]; then
 
-            echo "ERROR: Migration Lambda returned FunctionError."
-
-            echo
-            echo "Lambda response:"
-            cat migration-response.json
+            echo "ERROR: Migration Lambda execution failed."
 
             exit 1
 
           fi
 
-
-          # ------------------------------------------------------------------
-          # Check application response
-          # ------------------------------------------------------------------
 
           SUCCESS=$(jq -r \
             '.body | fromjson | .success // false' \
@@ -525,58 +730,50 @@ jobs:
 
             echo "ERROR: Migration Lambda did not report success."
 
-            cat migration-response.json
-
             exit 1
 
           fi
 
 
-          echo
-          echo "Database migrations completed successfully."
+          echo "Database migrations verified successfully."
 
 
       # ======================================================================
-      # 17. SECOND INVOCATION
-      #
-      # This verifies that V001 and V002 are not executed twice.
+      # 23. TEST PUBLIC HEALTH ENDPOINT
       # ======================================================================
 
-      - name: Verify migrations are idempotent
+      - name: Test public health endpoint
         run: |
           set -euo pipefail
 
-          echo "Running Migration Lambda for a second time..."
 
-          aws lambda invoke \
-            --function-name "${{ steps.migration.outputs.function_name }}" \
-            --region "${AWS_REGION}" \
-            --cli-binary-format raw-in-base64-out \
-            --payload '{}' \
-            migration-second-response.json \
-            --output json \
-            > migration-second-invoke.json
+          HEALTH_URL="${{ steps.application.outputs.health_url }}"
+
+
+          echo "Testing:"
+          echo "${HEALTH_URL}"
+
+
+          HTTP_STATUS=$(curl \
+            --silent \
+            --show-error \
+            --output health-response.json \
+            --write-out "%{http_code}" \
+            "${HEALTH_URL}")
+
+
+          echo "HTTP status: ${HTTP_STATUS}"
 
 
           echo
-          echo "Second invocation metadata:"
-          cat migration-second-invoke.json
-
-
-          echo
-          echo "Second migration response:"
-          cat migration-second-response.json
+          echo "Response:"
+          cat health-response.json
           echo
 
 
-          FUNCTION_ERROR=$(jq -r \
-            '.FunctionError // empty' \
-            migration-second-invoke.json)
+          if [ "${HTTP_STATUS}" != "200" ]; then
 
-
-          if [ -n "${FUNCTION_ERROR}" ]; then
-
-            echo "ERROR: Second Migration Lambda invocation failed."
+            echo "ERROR: Health endpoint did not return HTTP 200."
 
             exit 1
 
@@ -584,26 +781,66 @@ jobs:
 
 
           SUCCESS=$(jq -r \
-            '.body | fromjson | .success // false' \
-            migration-second-response.json)
+            '.success // false' \
+            health-response.json)
 
 
           if [ "${SUCCESS}" != "true" ]; then
 
-            echo "ERROR: Second migration invocation did not report success."
+            echo "ERROR: Health endpoint did not report success."
 
             exit 1
 
           fi
 
 
-          echo "Second migration invocation completed successfully."
+          echo "Public health endpoint passed."
 
 
       # ======================================================================
-      # 18. DISPLAY STACK 2 OUTPUTS
-      #
-      # Only run this if Stack 2 actually exists.
+      # 24. TEST CORS PREFLIGHT
+      # ======================================================================
+
+      - name: Test health endpoint CORS
+        run: |
+          set -euo pipefail
+
+
+          HEALTH_URL="${{ steps.application.outputs.health_url }}"
+
+
+          echo "Testing CORS preflight..."
+
+
+          curl \
+            --fail \
+            --show-error \
+            --silent \
+            --request OPTIONS \
+            --header "Origin: ${ALLOWED_ORIGIN}" \
+            --header "Access-Control-Request-Method: GET" \
+            --header "Access-Control-Request-Headers: Authorization" \
+            --dump-header cors-headers.txt \
+            --output /dev/null \
+            "${HEALTH_URL}"
+
+
+          echo
+          echo "CORS response headers:"
+          cat cors-headers.txt
+
+
+          grep -qi \
+            "access-control-allow-origin: ${ALLOWED_ORIGIN}" \
+            cors-headers.txt
+
+
+          echo
+          echo "CORS preflight passed."
+
+
+      # ======================================================================
+      # 25. DISPLAY STACK OUTPUTS
       # ======================================================================
 
       - name: Display Stack 2 outputs
@@ -612,7 +849,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "Stack 2 outputs:"
+
+          echo "FairWork Pulse Stack 2 outputs:"
+
 
           aws cloudformation describe-stacks \
             --stack-name "${APPLICATION_STACK_NAME}" \

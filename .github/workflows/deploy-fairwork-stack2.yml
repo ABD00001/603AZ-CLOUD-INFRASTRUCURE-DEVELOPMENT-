@@ -149,6 +149,8 @@ jobs:
 
             "database/migrations/V002__moderation_rules.sql"
 
+            "database/seeds/development_seed.sql"
+
           )
 
 
@@ -235,6 +237,8 @@ jobs:
 
           mkdir -p build/migration/migrations
 
+          mkdir -p build/migration/seeds
+
           mkdir -p build/api
 
           echo "Build directories created."
@@ -275,7 +279,14 @@ jobs:
             build/migration/migrations/
 
 
-          echo "Migration Lambda source prepared."
+          # Copy development/demo seed data
+
+          cp \
+            database/seeds/development_seed.sql \
+            build/migration/seeds/development_seed.sql
+
+
+          echo "Migration Lambda source and seed data prepared."
 
 
       # ======================================================================
@@ -385,6 +396,9 @@ jobs:
 
           test -f \
             build/migration/migrations/V002__moderation_rules.sql
+
+          test -f \
+            build/migration/seeds/development_seed.sql
 
           test -d build/migration/node_modules
 

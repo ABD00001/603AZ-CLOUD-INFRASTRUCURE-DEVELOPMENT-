@@ -926,16 +926,6 @@ Resources:
 
       Description: FairWork Pulse PoC API stage.
 
-      MethodSettings:
-
-        - ResourcePath: '/*'
-
-          HttpMethod: '*'
-
-          MetricsEnabled: true
-
-          LoggingLevel: INFO
-
 
 # =============================================================================
 # OUTPUTS

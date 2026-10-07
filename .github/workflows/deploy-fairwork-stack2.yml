@@ -146,6 +146,7 @@ jobs:
             "lambda/api/routes/health.js"
             "lambda/api/routes/profile.js"
             "lambda/api/routes/companies.js"
+            "lambda/api/routes/workplace.js"
 
             "lambda/api/services/database.js"
             "lambda/api/services/auth.js"
@@ -259,37 +260,25 @@ jobs:
 
           echo "Preparing Migration Lambda..."
 
-
-          # Copy Lambda source
-
           cp \
             lambda/migrations/index.js \
             build/migration/index.js
-
 
           cp \
             lambda/migrations/package.json \
             build/migration/package.json
 
-
-          # Copy version-controlled SQL migrations
-
           cp \
             database/migrations/V001__initial_schema.sql \
             build/migration/migrations/
-
 
           cp \
             database/migrations/V002__moderation_rules.sql \
             build/migration/migrations/
 
-
-          # Copy development/demo seed data
-
           cp \
             database/seeds/development_seed.sql \
             build/migration/seeds/development_seed.sql
-
 
           echo "Migration Lambda source and seed data prepared."
 
@@ -324,28 +313,11 @@ jobs:
 
           echo "Preparing modular API Lambda..."
 
-
-          # Copy the complete API application.
-          #
-          # This includes:
-          #   index.js
-          #   package.json
-          #   routes/
-          #   services/
-          #   utils/
-
           cp -R \
             lambda/api/. \
             build/api/
 
-
-          # Never package node_modules from the repository.
-          #
-          # Dependencies are installed cleanly on the
-          # GitHub Actions Linux runner in the next step.
-
           rm -rf build/api/node_modules
-
 
           echo "API Lambda source prepared."
 
@@ -386,7 +358,6 @@ jobs:
         run: |
           set -euo pipefail
 
-
           echo "=========================================="
           echo "Migration Lambda"
           echo "=========================================="
@@ -395,7 +366,6 @@ jobs:
             -maxdepth 2 \
             -type f \
             | sort
-
 
           echo
           echo "=========================================="
@@ -408,9 +378,7 @@ jobs:
             | sort
 
 
-          # ------------------------------------------------------------------
           # Migration checks
-          # ------------------------------------------------------------------
 
           test -f build/migration/index.js
 
@@ -428,18 +396,14 @@ jobs:
           test -d build/migration/node_modules
 
 
-          # ------------------------------------------------------------------
           # API core checks
-          # ------------------------------------------------------------------
 
           test -f build/api/index.js
 
           test -f build/api/package.json
 
 
-          # ------------------------------------------------------------------
           # API route checks
-          # ------------------------------------------------------------------
 
           test -f \
             build/api/routes/health.js
@@ -450,10 +414,11 @@ jobs:
           test -f \
             build/api/routes/companies.js
 
+          test -f \
+            build/api/routes/workplace.js
 
-          # ------------------------------------------------------------------
+
           # API service checks
-          # ------------------------------------------------------------------
 
           test -f \
             build/api/services/database.js
@@ -462,17 +427,13 @@ jobs:
             build/api/services/auth.js
 
 
-          # ------------------------------------------------------------------
           # API utility checks
-          # ------------------------------------------------------------------
 
           test -f \
             build/api/utils/response.js
 
 
-          # ------------------------------------------------------------------
           # Dependency check
-          # ------------------------------------------------------------------
 
           test -d build/api/node_modules
 
@@ -498,7 +459,6 @@ jobs:
 
           popd > /dev/null
 
-
           echo "Migration ZIP:"
 
           ls -lh build/migration.zip
@@ -521,7 +481,6 @@ jobs:
 
           popd > /dev/null
 
-
           echo "API ZIP:"
 
           ls -lh build/api.zip
@@ -537,23 +496,18 @@ jobs:
         run: |
           set -euo pipefail
 
-
           MIGRATION_KEY="stack2/migration/${GITHUB_SHA}/migration.zip"
 
           API_KEY="stack2/api/${GITHUB_SHA}/api.zip"
 
-
           echo "migration_key=${MIGRATION_KEY}" \
             >> "${GITHUB_OUTPUT}"
-
 
           echo "api_key=${API_KEY}" \
             >> "${GITHUB_OUTPUT}"
 
-
           echo "Migration S3 key:"
           echo "${MIGRATION_KEY}"
-
 
           echo "API S3 key:"
           echo "${API_KEY}"
@@ -575,15 +529,12 @@ jobs:
         run: |
           set -euo pipefail
 
-
           echo "Uploading Migration Lambda..."
-
 
           aws s3 cp \
             build/migration.zip \
             "s3://${ARTIFACT_BUCKET}/${MIGRATION_KEY}" \
             --region "${AWS_REGION}"
-
 
           echo "Migration package uploaded."
 
@@ -604,15 +555,12 @@ jobs:
         run: |
           set -euo pipefail
 
-
           echo "Uploading API Lambda..."
-
 
           aws s3 cp \
             build/api.zip \
             "s3://${ARTIFACT_BUCKET}/${API_KEY}" \
             --region "${AWS_REGION}"
-
 
           echo "API package uploaded."
 
@@ -625,9 +573,7 @@ jobs:
         run: |
           set -euo pipefail
 
-
           echo "Deploying FairWork Pulse Stack 2..."
-
 
           aws cloudformation deploy \
             --stack-name "${APPLICATION_STACK_NAME}" \
@@ -651,7 +597,6 @@ jobs:
               ManagedBy=CloudFormation \
             --no-fail-on-empty-changeset
 
-
           echo "Stack 2 deployment completed."
 
 
@@ -665,13 +610,11 @@ jobs:
         run: |
           set -euo pipefail
 
-
           MIGRATION_FUNCTION=$(aws cloudformation describe-stacks \
             --stack-name "${APPLICATION_STACK_NAME}" \
             --region "${AWS_REGION}" \
             --query "Stacks[0].Outputs[?OutputKey=='MigrationFunctionName'].OutputValue | [0]" \
             --output text)
-
 
           API_FUNCTION=$(aws cloudformation describe-stacks \
             --stack-name "${APPLICATION_STACK_NAME}" \
@@ -679,20 +622,17 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='ApiFunctionName'].OutputValue | [0]" \
             --output text)
 
-
           HEALTH_URL=$(aws cloudformation describe-stacks \
             --stack-name "${APPLICATION_STACK_NAME}" \
             --region "${AWS_REGION}" \
             --query "Stacks[0].Outputs[?OutputKey=='HealthUrl'].OutputValue | [0]" \
             --output text)
 
-
           USER_POOL_ID=$(aws cloudformation describe-stacks \
             --stack-name "${APPLICATION_STACK_NAME}" \
             --region "${AWS_REGION}" \
             --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue | [0]" \
             --output text)
-
 
           USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
             --stack-name "${APPLICATION_STACK_NAME}" \
@@ -734,18 +674,14 @@ jobs:
           echo "migration_function=${MIGRATION_FUNCTION}" \
             >> "${GITHUB_OUTPUT}"
 
-
           echo "api_function=${API_FUNCTION}" \
             >> "${GITHUB_OUTPUT}"
-
 
           echo "health_url=${HEALTH_URL}" \
             >> "${GITHUB_OUTPUT}"
 
-
           echo "user_pool_id=${USER_POOL_ID}" \
             >> "${GITHUB_OUTPUT}"
-
 
           echo "user_pool_client_id=${USER_POOL_CLIENT_ID}" \
             >> "${GITHUB_OUTPUT}"
@@ -759,9 +695,7 @@ jobs:
         run: |
           set -euo pipefail
 
-
           echo "Invoking Migration Lambda..."
-
 
           aws lambda invoke \
             --function-name "${{ steps.application.outputs.migration_function }}" \
@@ -772,22 +706,18 @@ jobs:
             --output json \
             > migration-invoke.json
 
-
           echo
           echo "Migration invocation:"
           cat migration-invoke.json
-
 
           echo
           echo "Migration response:"
           cat migration-response.json
           echo
 
-
           FUNCTION_ERROR=$(jq -r \
             '.FunctionError // empty' \
             migration-invoke.json)
-
 
           if [ -n "${FUNCTION_ERROR}" ]; then
 
@@ -797,11 +727,9 @@ jobs:
 
           fi
 
-
           SUCCESS=$(jq -r \
             '.body | fromjson | .success // false' \
             migration-response.json)
-
 
           if [ "${SUCCESS}" != "true" ]; then
 
@@ -810,7 +738,6 @@ jobs:
             exit 1
 
           fi
-
 
           echo "Database migrations verified successfully."
 
@@ -823,13 +750,10 @@ jobs:
         run: |
           set -euo pipefail
 
-
           HEALTH_URL="${{ steps.application.outputs.health_url }}"
-
 
           echo "Testing:"
           echo "${HEALTH_URL}"
-
 
           HTTP_STATUS=$(curl \
             --silent \
@@ -838,15 +762,12 @@ jobs:
             --write-out "%{http_code}" \
             "${HEALTH_URL}")
 
-
           echo "HTTP status: ${HTTP_STATUS}"
-
 
           echo
           echo "Response:"
           cat health-response.json
           echo
-
 
           if [ "${HTTP_STATUS}" != "200" ]; then
 
@@ -856,11 +777,9 @@ jobs:
 
           fi
 
-
           SUCCESS=$(jq -r \
             '.success // false' \
             health-response.json)
-
 
           if [ "${SUCCESS}" != "true" ]; then
 
@@ -869,7 +788,6 @@ jobs:
             exit 1
 
           fi
-
 
           echo "Public health endpoint passed."
 
@@ -882,12 +800,9 @@ jobs:
         run: |
           set -euo pipefail
 
-
           HEALTH_URL="${{ steps.application.outputs.health_url }}"
 
-
           echo "Testing CORS preflight..."
-
 
           curl \
             --fail \
@@ -901,16 +816,13 @@ jobs:
             --output /dev/null \
             "${HEALTH_URL}"
 
-
           echo
           echo "CORS response headers:"
           cat cors-headers.txt
 
-
           grep -qi \
             "access-control-allow-origin: ${ALLOWED_ORIGIN}" \
             cors-headers.txt
-
 
           echo
           echo "CORS preflight passed."
@@ -926,9 +838,7 @@ jobs:
         run: |
           set -euo pipefail
 
-
           echo "FairWork Pulse Stack 2 outputs:"
-
 
           aws cloudformation describe-stacks \
             --stack-name "${APPLICATION_STACK_NAME}" \

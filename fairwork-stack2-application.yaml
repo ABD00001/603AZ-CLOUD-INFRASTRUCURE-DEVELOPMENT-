@@ -854,6 +854,122 @@ Resources:
 
 
   # ===========================================================================
+  # /workplace-associations
+  # ===========================================================================
+
+  WorkplaceAssociationsResource:
+    Type: AWS::ApiGateway::Resource
+
+    Properties:
+
+      RestApiId:
+        !Ref FairWorkApi
+
+      ParentId:
+        !GetAtt FairWorkApi.RootResourceId
+
+      PathPart: workplace-associations
+
+
+  # ===========================================================================
+  # GET /workplace-associations
+  #
+  # Returns workplace associations belonging only to the authenticated user.
+  #
+  # User identity is derived from the Cognito JWT by the API Lambda.
+  # The client does not provide a user ID.
+  # ===========================================================================
+
+  WorkplaceAssociationsGetMethod:
+    Type: AWS::ApiGateway::Method
+
+    Properties:
+
+      RestApiId:
+        !Ref FairWorkApi
+
+      ResourceId:
+        !Ref WorkplaceAssociationsResource
+
+      HttpMethod: GET
+
+      AuthorizationType: COGNITO_USER_POOLS
+
+      AuthorizerId:
+        !Ref FairWorkCognitoAuthorizer
+
+      Integration:
+
+        Type: AWS_PROXY
+
+        IntegrationHttpMethod: POST
+
+        Uri:
+          !Sub
+            - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+            - LambdaArn: !GetAtt ApiFunction.Arn
+
+
+  # ===========================================================================
+  # OPTIONS /workplace-associations
+  #
+  # Public CORS preflight method.
+  # Authentication is deliberately not required for OPTIONS.
+  # ===========================================================================
+
+  WorkplaceAssociationsOptionsMethod:
+    Type: AWS::ApiGateway::Method
+
+    Properties:
+
+      RestApiId:
+        !Ref FairWorkApi
+
+      ResourceId:
+        !Ref WorkplaceAssociationsResource
+
+      HttpMethod: OPTIONS
+
+      AuthorizationType: NONE
+
+      Integration:
+
+        Type: MOCK
+
+        RequestTemplates:
+
+          application/json: |
+            {
+              "statusCode": 200
+            }
+
+        IntegrationResponses:
+
+          - StatusCode: 200
+
+            ResponseParameters:
+
+              method.response.header.Access-Control-Allow-Headers:
+                "'Content-Type,Authorization'"
+
+              method.response.header.Access-Control-Allow-Methods:
+                "'GET,OPTIONS'"
+
+              method.response.header.Access-Control-Allow-Origin:
+                !Sub "'${AllowedOrigin}'"
+
+      MethodResponses:
+
+        - StatusCode: 200
+
+          ResponseParameters:
+
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+
+  # ===========================================================================
   # API GATEWAY PERMISSION TO INVOKE API LAMBDA
   # ===========================================================================
 
@@ -896,6 +1012,9 @@ Resources:
 
       - CompanyGetMethod
       - CompanyOptionsMethod
+
+      - WorkplaceAssociationsGetMethod
+      - WorkplaceAssociationsOptionsMethod
 
     Properties:
 
@@ -1017,6 +1136,14 @@ Outputs:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/companies'
 
 
+  WorkplaceAssociationsUrl:
+
+    Description: Cognito protected workplace associations endpoint.
+
+    Value:
+      !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/workplace-associations'
+
+
   # ===========================================================================
   # COGNITO
   # ===========================================================================
@@ -1029,14 +1156,6 @@ Outputs:
       !Ref FairWorkUserPool
 
 
-  UserPoolArn:
-
-    Description: Cognito User Pool ARN.
-
-    Value:
-      !GetAtt FairWorkUserPool.Arn
-
-
   UserPoolClientId:
 
     Description: Cognito application client ID.
@@ -1045,33 +1164,9 @@ Outputs:
       !Ref FairWorkUserPoolClient
 
 
-  CognitoRegion:
+  UserPoolArn:
 
-    Description: AWS Region containing the Cognito User Pool.
-
-    Value:
-      !Ref AWS::Region
-
-
-  # ===========================================================================
-  # DATABASE
-  # ===========================================================================
-
-  DatabaseEndpoint:
-
-    Description: Primary RDS endpoint imported from Stack 1.
+    Description: Cognito User Pool ARN.
 
     Value:
-
-      Fn::ImportValue:
-        !Sub '${InfrastructureStackName}-DatabaseEndpoint'
-
-
-  DatabaseName:
-
-    Description: FairWork Pulse database name.
-
-    Value:
-
-      Fn::ImportValue:
-        !Sub '${InfrastructureStackName}-DatabaseName'
+      !GetAtt FairWorkUserPool.Arn

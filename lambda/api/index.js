@@ -11,11 +11,12 @@
 
  Current routes:
 
-   GET /health
-   GET /profile
-   GET /companies
-   GET /companies/{companyId}
-   GET /workplace-associations
+   GET  /health
+   GET  /profile
+   GET  /companies
+   GET  /companies/{companyId}
+   GET  /workplace-associations
+   POST /companies/{companyId}/verification-codes
 
 ===============================================================================
 */
@@ -36,6 +37,10 @@ const {
 const {
   handleGetWorkplaceAssociations
 } = require('./routes/workplace');
+
+const {
+  handleGenerateVerificationCodes
+} = require('./routes/verificationCodes');
 
 const {
   response
@@ -157,6 +162,20 @@ exports.handler = async (event) => {
     ) {
 
       return await handleGetWorkplaceAssociations(event);
+
+    }
+
+
+    // ------------------------------------------------------------------------
+    // POST /companies/{companyId}/verification-codes
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'POST' &&
+      path === '/companies/{companyId}/verification-codes'
+    ) {
+
+      return await handleGenerateVerificationCodes(event);
 
     }
 

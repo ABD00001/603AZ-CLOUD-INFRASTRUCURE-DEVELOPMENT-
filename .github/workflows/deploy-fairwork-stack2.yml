@@ -147,6 +147,7 @@ jobs:
             "lambda/api/routes/profile.js"
             "lambda/api/routes/companies.js"
             "lambda/api/routes/workplace.js"
+            "lambda/api/routes/verificationCodes.js"
 
             "lambda/api/services/database.js"
             "lambda/api/services/auth.js"
@@ -416,6 +417,9 @@ jobs:
 
           test -f \
             build/api/routes/workplace.js
+
+          test -f \
+            build/api/routes/verificationCodes.js
 
 
           # API service checks

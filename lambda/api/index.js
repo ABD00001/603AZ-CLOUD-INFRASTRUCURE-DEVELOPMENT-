@@ -16,6 +16,7 @@
    GET  /companies
    GET  /companies/{companyId}
    GET  /workplace-associations
+   POST /workplace-associations/verify
    POST /companies/{companyId}/verification-codes
 
 ===============================================================================
@@ -35,7 +36,8 @@ const {
 } = require('./routes/companies');
 
 const {
-  handleGetWorkplaceAssociations
+  handleGetWorkplaceAssociations,
+  handleVerifyWorkplaceAssociation
 } = require('./routes/workplace');
 
 const {
@@ -162,6 +164,20 @@ exports.handler = async (event) => {
     ) {
 
       return await handleGetWorkplaceAssociations(event);
+
+    }
+
+
+    // ------------------------------------------------------------------------
+    // POST /workplace-associations/verify
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'POST' &&
+      path === '/workplace-associations/verify'
+    ) {
+
+      return await handleVerifyWorkplaceAssociation(event);
 
     }
 

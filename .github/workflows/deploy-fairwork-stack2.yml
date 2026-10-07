@@ -138,15 +138,21 @@ jobs:
             "${TEMPLATE_FILE}"
 
             "lambda/migrations/index.js"
-
             "lambda/migrations/package.json"
 
             "lambda/api/index.js"
-
             "lambda/api/package.json"
 
-            "database/migrations/V001__initial_schema.sql"
+            "lambda/api/routes/health.js"
+            "lambda/api/routes/profile.js"
+            "lambda/api/routes/companies.js"
 
+            "lambda/api/services/database.js"
+            "lambda/api/services/auth.js"
+
+            "lambda/api/utils/response.js"
+
+            "database/migrations/V001__initial_schema.sql"
             "database/migrations/V002__moderation_rules.sql"
 
             "database/seeds/development_seed.sql"
@@ -236,7 +242,6 @@ jobs:
           rm -rf build
 
           mkdir -p build/migration/migrations
-
           mkdir -p build/migration/seeds
 
           mkdir -p build/api
@@ -310,27 +315,47 @@ jobs:
 
 
       # ======================================================================
-      # 12. PREPARE API LAMBDA
+      # 12. PREPARE MODULAR API LAMBDA
       # ======================================================================
 
       - name: Prepare API Lambda
         run: |
           set -euo pipefail
 
-          echo "Preparing API Lambda..."
+          echo "Preparing modular API Lambda..."
 
 
-          cp \
-            lambda/api/index.js \
-            build/api/index.js
+          # Copy the complete API application.
+          #
+          # This includes:
+          #   index.js
+          #   package.json
+          #   routes/
+          #   services/
+          #   utils/
+
+          cp -R \
+            lambda/api/. \
+            build/api/
 
 
-          cp \
-            lambda/api/package.json \
-            build/api/package.json
+          # Never package node_modules from the repository.
+          #
+          # Dependencies are installed cleanly on the
+          # GitHub Actions Linux runner in the next step.
+
+          rm -rf build/api/node_modules
 
 
           echo "API Lambda source prepared."
+
+          echo
+          echo "API source structure:"
+
+          find build/api \
+            -maxdepth 3 \
+            -type f \
+            | sort
 
 
       # ======================================================================
@@ -378,7 +403,7 @@ jobs:
           echo "=========================================="
 
           find build/api \
-            -maxdepth 2 \
+            -maxdepth 3 \
             -type f \
             | sort
 
@@ -404,12 +429,50 @@ jobs:
 
 
           # ------------------------------------------------------------------
-          # API checks
+          # API core checks
           # ------------------------------------------------------------------
 
           test -f build/api/index.js
 
           test -f build/api/package.json
+
+
+          # ------------------------------------------------------------------
+          # API route checks
+          # ------------------------------------------------------------------
+
+          test -f \
+            build/api/routes/health.js
+
+          test -f \
+            build/api/routes/profile.js
+
+          test -f \
+            build/api/routes/companies.js
+
+
+          # ------------------------------------------------------------------
+          # API service checks
+          # ------------------------------------------------------------------
+
+          test -f \
+            build/api/services/database.js
+
+          test -f \
+            build/api/services/auth.js
+
+
+          # ------------------------------------------------------------------
+          # API utility checks
+          # ------------------------------------------------------------------
+
+          test -f \
+            build/api/utils/response.js
+
+
+          # ------------------------------------------------------------------
+          # Dependency check
+          # ------------------------------------------------------------------
 
           test -d build/api/node_modules
 

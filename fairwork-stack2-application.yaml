@@ -1082,6 +1082,114 @@ Resources:
 
 
   # ===========================================================================
+  # /workplace-associations/verify
+  # ===========================================================================
+
+  WorkplaceAssociationVerifyResource:
+    Type: AWS::ApiGateway::Resource
+
+    Properties:
+
+      RestApiId:
+        !Ref FairWorkApi
+
+      ParentId:
+        !Ref WorkplaceAssociationsResource
+
+      PathPart: verify
+
+
+  # ===========================================================================
+  # POST /workplace-associations/verify
+  # ===========================================================================
+
+  WorkplaceAssociationVerifyPostMethod:
+    Type: AWS::ApiGateway::Method
+
+    Properties:
+
+      RestApiId:
+        !Ref FairWorkApi
+
+      ResourceId:
+        !Ref WorkplaceAssociationVerifyResource
+
+      HttpMethod: POST
+
+      AuthorizationType: COGNITO_USER_POOLS
+
+      AuthorizerId:
+        !Ref FairWorkCognitoAuthorizer
+
+      Integration:
+
+        Type: AWS_PROXY
+
+        IntegrationHttpMethod: POST
+
+        Uri:
+          !Sub
+            - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+            - LambdaArn: !GetAtt ApiFunction.Arn
+
+
+  # ===========================================================================
+  # OPTIONS /workplace-associations/verify
+  # ===========================================================================
+
+  WorkplaceAssociationVerifyOptionsMethod:
+    Type: AWS::ApiGateway::Method
+
+    Properties:
+
+      RestApiId:
+        !Ref FairWorkApi
+
+      ResourceId:
+        !Ref WorkplaceAssociationVerifyResource
+
+      HttpMethod: OPTIONS
+
+      AuthorizationType: NONE
+
+      Integration:
+
+        Type: MOCK
+
+        RequestTemplates:
+
+          application/json: |
+            {
+              "statusCode": 200
+            }
+
+        IntegrationResponses:
+
+          - StatusCode: 200
+
+            ResponseParameters:
+
+              method.response.header.Access-Control-Allow-Headers:
+                "'Content-Type,Authorization'"
+
+              method.response.header.Access-Control-Allow-Methods:
+                "'POST,OPTIONS'"
+
+              method.response.header.Access-Control-Allow-Origin:
+                !Sub "'${AllowedOrigin}'"
+
+      MethodResponses:
+
+        - StatusCode: 200
+
+          ResponseParameters:
+
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+
+  # ===========================================================================
   # API GATEWAY PERMISSION TO INVOKE API LAMBDA
   # ===========================================================================
 
@@ -1127,6 +1235,9 @@ Resources:
 
       - WorkplaceAssociationsGetMethod
       - WorkplaceAssociationsOptionsMethod
+
+      - WorkplaceAssociationVerifyPostMethod
+      - WorkplaceAssociationVerifyOptionsMethod
 
       - VerificationCodesPostMethod
       - VerificationCodesOptionsMethod
@@ -1257,6 +1368,14 @@ Outputs:
 
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/workplace-associations'
+
+
+  WorkplaceAssociationVerifyUrl:
+
+    Description: Employee workplace verification-code redemption endpoint.
+
+    Value:
+      !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/workplace-associations/verify'
 
 
   VerificationCodesUrlTemplate:

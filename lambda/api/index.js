@@ -15,6 +15,7 @@
    GET /profile
    GET /companies
    GET /companies/{companyId}
+   GET /workplace-associations
 
 ===============================================================================
 */
@@ -33,6 +34,10 @@ const {
 } = require('./routes/companies');
 
 const {
+  handleGetWorkplaceAssociations
+} = require('./routes/workplace');
+
+const {
   response
 } = require('./utils/response');
 
@@ -48,6 +53,7 @@ function getHttpMethod(event) {
     event.requestContext?.http?.method ||
     ''
   ).toUpperCase();
+
 }
 
 
@@ -59,6 +65,7 @@ function getPath(event) {
     event.path ||
     '/'
   );
+
 }
 
 
@@ -136,6 +143,20 @@ exports.handler = async (event) => {
     ) {
 
       return await handleGetCompany(event);
+
+    }
+
+
+    // ------------------------------------------------------------------------
+    // GET /workplace-associations
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'GET' &&
+      path === '/workplace-associations'
+    ) {
+
+      return await handleGetWorkplaceAssociations(event);
 
     }
 

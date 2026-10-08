@@ -150,6 +150,7 @@ jobs:
             "lambda/api/routes/verificationCodes.js"
             "lambda/api/routes/reviews.js"
             "lambda/api/routes/adminModeration.js"
+            "lambda/api/routes/adminCompanies.js"
 
             "lambda/worker/index.js"
             "lambda/worker/package.json"

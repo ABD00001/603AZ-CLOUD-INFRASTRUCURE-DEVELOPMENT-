@@ -148,8 +148,6 @@ Resources:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabaseSecretArn'
 
-          MODERATION_QUEUE_URL: !Ref ModerationQueue
-
           DEPLOYMENT_VERSION:
             !Ref DeploymentVersion
 
@@ -383,6 +381,8 @@ Resources:
           DB_SECRET_ARN:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabaseSecretArn'
+
+          MODERATION_QUEUE_URL: !Ref ModerationQueue
 
           ALLOWED_ORIGIN:
             !Ref AllowedOrigin

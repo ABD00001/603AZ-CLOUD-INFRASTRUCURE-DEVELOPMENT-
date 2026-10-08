@@ -6,17 +6,13 @@
  FairWork Pulse - Admin Review Moderation
 ===============================================================================
 
- Routes:
-   GET  /admin/reviews/flagged
-   POST /admin/reviews/{reviewId}/approve
-   POST /admin/reviews/{reviewId}/reject
+ GET  /admin/reviews/flagged
+ POST /admin/reviews/{reviewId}/approve
+ POST /admin/reviews/{reviewId}/reject
 
- Security:
-   - Cognito authentication required.
-   - Cognito ADMIN group membership required.
-   - Reviewer identities are never returned by these endpoints.
-   - Only FLAGGED reviews may be approved or rejected.
-   - Updates are conditional to prevent conflicting decisions.
+ Uses the V001 database schema.
+ Only Cognito ADMIN users with an ACTIVE application profile
+ may make moderation decisions.
 
 ===============================================================================
 */
@@ -35,7 +31,7 @@ const {
 
 
 // =============================================================================
-// ADMIN AUTHORIZATION
+// AUTHORIZATION
 // =============================================================================
 
 function requireAdmin(event) {
@@ -54,7 +50,8 @@ function requireAdmin(event) {
 
   if (
     !Array.isArray(user.groups) ||
-    !user.groups.includes('ADMIN')
+    !user.groups.includes('ADMIN') ||
+    !user.cognitoSub
   ) {
     return {
       allowed: false,
@@ -69,6 +66,27 @@ function requireAdmin(event) {
     allowed: true,
     user
   };
+}
+
+
+// =============================================================================
+// ACTIVE ADMIN PROFILE
+// =============================================================================
+
+async function getActiveAdminProfile(connection, cognitoSub) {
+
+  const [rows] = await connection.execute(
+    `
+      SELECT user_id
+      FROM user_profiles
+      WHERE cognito_sub = ?
+        AND account_status = 'ACTIVE'
+      LIMIT 1
+    `,
+    [cognitoSub]
+  );
+
+  return rows.length ? rows[0] : null;
 }
 
 
@@ -106,35 +124,53 @@ function getReviewId(event) {
 
 async function handleGetFlaggedReviews(event) {
 
-  const authorization = requireAdmin(event);
+  const auth = requireAdmin(event);
 
-  if (!authorization.allowed) {
-    return authorization.result;
+  if (!auth.allowed) {
+    return auth.result;
   }
 
   const connection = await getDatabaseConnection();
 
   try {
 
+    const admin = await getActiveAdminProfile(
+      connection,
+      auth.user.cognitoSub
+    );
+
+    if (!admin) {
+      return response(403, {
+        success: false,
+        message: 'An active administrator profile is required.'
+      });
+    }
+
     const [rows] = await connection.execute(
       `
-      SELECT
-        r.review_id AS reviewId,
-        r.company_id AS companyId,
-        c.company_name AS companyName,
-        r.rating,
-        r.review_title AS reviewTitle,
-        r.review_text AS reviewText,
-        r.moderation_status AS moderationStatus,
-        r.moderation_score AS moderationScore,
-        r.moderation_reason AS moderationReason,
-        r.submitted_at AS submittedAt
-      FROM reviews r
-      INNER JOIN companies c
-        ON c.company_id = r.company_id
-      WHERE r.moderation_status = 'FLAGGED'
-      ORDER BY r.submitted_at ASC
-      LIMIT 100
+        SELECT
+          r.review_id AS reviewId,
+          r.company_id AS companyId,
+          c.name AS companyName,
+          r.rating,
+          r.review_title AS reviewTitle,
+          r.review_text AS reviewText,
+          r.moderation_status AS moderationStatus,
+          r.moderation_score AS moderationScore,
+          r.moderation_reason AS moderationReason,
+          r.submitted_at AS submittedAt,
+          r.moderated_at AS moderatedAt
+
+        FROM reviews r
+
+        INNER JOIN companies c
+          ON c.company_id = r.company_id
+
+        WHERE r.moderation_status = 'FLAGGED'
+
+        ORDER BY r.submitted_at ASC
+
+        LIMIT 100
       `
     );
 
@@ -147,20 +183,19 @@ async function handleGetFlaggedReviews(event) {
   } finally {
     await connection.end();
   }
-
 }
 
 
 // =============================================================================
-// SHARED APPROVE / REJECT OPERATION
+// SHARED APPROVE / REJECT LOGIC
 // =============================================================================
 
 async function updateReviewStatus(event, targetStatus) {
 
-  const authorization = requireAdmin(event);
+  const auth = requireAdmin(event);
 
-  if (!authorization.allowed) {
-    return authorization.result;
+  if (!auth.allowed) {
+    return auth.result;
   }
 
   const reviewId = getReviewId(event);
@@ -176,37 +211,52 @@ async function updateReviewStatus(event, targetStatus) {
 
   try {
 
+    const admin = await getActiveAdminProfile(
+      connection,
+      auth.user.cognitoSub
+    );
+
+    if (!admin) {
+      return response(403, {
+        success: false,
+        message: 'An active administrator profile is required.'
+      });
+    }
+
     /*
-     * Conditional update:
+     * Atomic conditional update:
      *
-     * A review can transition only from FLAGGED to
-     * HUMAN_APPROVED or HUMAN_REJECTED.
-     *
-     * If another administrator has already made a decision,
-     * the update will not overwrite it.
+     * - Only FLAGGED reviews can be changed.
+     * - Record the administrator's database user ID.
+     * - Record the decision timestamp.
+     * - Preserve automated moderation score and reason.
      */
 
     const [result] = await connection.execute(
       `
-      UPDATE reviews
-      SET
-        moderation_status = ?,
-        moderated_at = UTC_TIMESTAMP()
-      WHERE review_id = ?
-        AND moderation_status = 'FLAGGED'
+        UPDATE reviews
+
+        SET
+          moderation_status = ?,
+          moderated_by = ?,
+          moderated_at = UTC_TIMESTAMP()
+
+        WHERE review_id = ?
+          AND moderation_status = 'FLAGGED'
       `,
       [
         targetStatus,
+        admin.user_id,
         reviewId
       ]
     );
 
     if (result.affectedRows === 1) {
 
-      console.log('Admin moderation decision', {
+      console.log('Admin moderation decision:', {
         reviewId,
         status: targetStatus,
-        adminCognitoSub: authorization.user.cognitoSub
+        adminUserId: admin.user_id
       });
 
       return response(200, {
@@ -220,25 +270,19 @@ async function updateReviewStatus(event, targetStatus) {
           status: targetStatus
         }
       });
-
     }
-
-    /*
-     * Determine whether the review is missing or is no
-     * longer eligible for human moderation.
-     */
 
     const [rows] = await connection.execute(
       `
-      SELECT moderation_status
-      FROM reviews
-      WHERE review_id = ?
-      LIMIT 1
+        SELECT moderation_status
+        FROM reviews
+        WHERE review_id = ?
+        LIMIT 1
       `,
       [reviewId]
     );
 
-    if (!rows.length) {
+    if (rows.length === 0) {
       return response(404, {
         success: false,
         message: 'Review not found.'
@@ -248,18 +292,18 @@ async function updateReviewStatus(event, targetStatus) {
     return response(409, {
       success: false,
       message:
-        'Review cannot be modified because it is not awaiting human moderation.'
+        'Review is not awaiting human moderation.',
+      currentStatus: rows[0].moderation_status
     });
 
   } finally {
     await connection.end();
   }
-
 }
 
 
 // =============================================================================
-// POST /admin/reviews/{reviewId}/approve
+// APPROVE REVIEW
 // =============================================================================
 
 async function handleApproveReview(event) {
@@ -268,12 +312,11 @@ async function handleApproveReview(event) {
     event,
     'HUMAN_APPROVED'
   );
-
 }
 
 
 // =============================================================================
-// POST /admin/reviews/{reviewId}/reject
+// REJECT REVIEW
 // =============================================================================
 
 async function handleRejectReview(event) {
@@ -282,7 +325,6 @@ async function handleRejectReview(event) {
     event,
     'HUMAN_REJECTED'
   );
-
 }
 
 

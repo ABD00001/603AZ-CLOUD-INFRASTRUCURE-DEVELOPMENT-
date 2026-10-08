@@ -12,30 +12,35 @@
 
  Routes:
 
-   GET  /health
-   GET  /profile
+   GET    /health
+   GET    /profile
 
-   GET  /companies
-   GET  /companies/{companyId}
+   GET    /companies
+   GET    /companies/{companyId}
 
-   GET  /workplace-associations
-   POST /workplace-associations/verify
+   GET    /workplace-associations
+   POST   /workplace-associations/verify
 
-   POST /companies/{companyId}/verification-codes
+   POST   /companies/{companyId}/verification-codes
 
-   POST /companies/{companyId}/reviews
-   GET  /companies/{companyId}/reviews
+   POST   /companies/{companyId}/reviews
+   GET    /companies/{companyId}/reviews
 
-   GET  /admin/reviews/flagged
-   POST /admin/reviews/{reviewId}/approve
-   POST /admin/reviews/{reviewId}/reject
+   GET    /admin/reviews/flagged
+   POST   /admin/reviews/{reviewId}/approve
+   POST   /admin/reviews/{reviewId}/reject
+
+   POST   /admin/companies
+   PATCH  /admin/companies/{companyId}
+   DELETE /admin/companies/{companyId}
 
  Security:
    - Authentication and authorization are enforced by API Gateway,
      Cognito and the individual route handlers.
-   - Admin moderation requires Cognito ADMIN group membership.
+   - Admin operations require Cognito ADMIN group membership.
    - Sensitive database and AWS errors are not returned to clients.
    - Employee identity must never be exposed through public review APIs.
+   - Company deletion is implemented as soft deletion.
 
 ===============================================================================
 */
@@ -60,7 +65,7 @@ const {
 
 
 // =============================================================================
-// COMPANY ROUTES
+// PUBLIC COMPANY ROUTES
 // =============================================================================
 
 const {
@@ -110,6 +115,17 @@ const {
 
 
 // =============================================================================
+// ADMIN COMPANY MANAGEMENT ROUTES
+// =============================================================================
+
+const {
+  handleCreateCompany,
+  handleUpdateCompany,
+  handleDeleteCompany
+} = require('./routes/adminCompanies');
+
+
+// =============================================================================
 // RESPONSE UTILITY
 // =============================================================================
 
@@ -123,21 +139,25 @@ const {
 // =============================================================================
 
 function getHttpMethod(event) {
+
   return (
     event.httpMethod ||
     event.requestContext?.http?.method ||
     ''
   ).toUpperCase();
+
 }
 
 
 function getPath(event) {
+
   return (
     event.resource ||
     event.rawPath ||
     event.path ||
     '/'
   );
+
 }
 
 
@@ -161,7 +181,10 @@ exports.handler = async (event) => {
     // GET /health
     // ------------------------------------------------------------------------
 
-    if (method === 'GET' && path === '/health') {
+    if (
+      method === 'GET' &&
+      path === '/health'
+    ) {
       return await handleHealth();
     }
 
@@ -170,7 +193,10 @@ exports.handler = async (event) => {
     // GET /profile
     // ------------------------------------------------------------------------
 
-    if (method === 'GET' && path === '/profile') {
+    if (
+      method === 'GET' &&
+      path === '/profile'
+    ) {
       return await handleGetProfile(event);
     }
 
@@ -179,7 +205,10 @@ exports.handler = async (event) => {
     // GET /companies
     // ------------------------------------------------------------------------
 
-    if (method === 'GET' && path === '/companies') {
+    if (
+      method === 'GET' &&
+      path === '/companies'
+    ) {
       return await handleGetCompanies();
     }
 
@@ -289,6 +318,42 @@ exports.handler = async (event) => {
       path === '/admin/reviews/{reviewId}/reject'
     ) {
       return await handleRejectReview(event);
+    }
+
+
+    // ------------------------------------------------------------------------
+    // POST /admin/companies
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'POST' &&
+      path === '/admin/companies'
+    ) {
+      return await handleCreateCompany(event);
+    }
+
+
+    // ------------------------------------------------------------------------
+    // PATCH /admin/companies/{companyId}
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'PATCH' &&
+      path === '/admin/companies/{companyId}'
+    ) {
+      return await handleUpdateCompany(event);
+    }
+
+
+    // ------------------------------------------------------------------------
+    // DELETE /admin/companies/{companyId}
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'DELETE' &&
+      path === '/admin/companies/{companyId}'
+    ) {
+      return await handleDeleteCompany(event);
     }
 
 

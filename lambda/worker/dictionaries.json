@@ -1,0 +1,7 @@
+{
+  "PROFANITY_EN": ["fuck", "shit", "bastard"],
+  "HARASSMENT_TARGETED_EN": ["you are worthless", "you are an idiot", "you are useless"],
+  "THREAT_DIRECT_EN": ["i will hurt you", "i will kill you", "i am going to hurt you"],
+  "THREAT_ESCALATED_EN": ["i will kill you tonight", "i am going to kill you tomorrow"],
+  "DISCRIMINATION_EN": ["people like you do not belong here", "your kind is not welcome"]
+}

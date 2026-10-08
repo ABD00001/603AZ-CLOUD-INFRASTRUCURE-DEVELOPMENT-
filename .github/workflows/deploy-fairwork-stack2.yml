@@ -148,6 +148,10 @@ jobs:
             "lambda/api/routes/companies.js"
             "lambda/api/routes/workplace.js"
             "lambda/api/routes/verificationCodes.js"
+            "lambda/api/routes/reviews.js"
+
+            "lambda/worker/index.js"
+            "lambda/worker/package.json"
 
             "lambda/api/services/database.js"
             "lambda/api/services/auth.js"
@@ -248,6 +252,7 @@ jobs:
           mkdir -p build/migration/seeds
 
           mkdir -p build/api
+          mkdir -p build/worker
 
           echo "Build directories created."
 
@@ -357,6 +362,25 @@ jobs:
 
 
       # ======================================================================
+      # PREPARE MODERATION WORKER LAMBDA
+      # ======================================================================
+
+      - name: Prepare Moderation Worker Lambda
+        run: |
+          set -euo pipefail
+          cp -R lambda/worker/. build/worker/
+          rm -rf build/worker/node_modules
+          echo "Worker Lambda source prepared."
+
+      - name: Install Moderation Worker dependencies
+        run: |
+          set -euo pipefail
+          pushd build/worker > /dev/null
+          npm install --omit=dev --no-audit --no-fund
+          popd > /dev/null
+          echo "Worker dependencies installed."
+
+      # ======================================================================
       # 14. VERIFY BUILD CONTENTS
       # ======================================================================
 
@@ -447,7 +471,11 @@ jobs:
 
           # Dependency check
 
+          test -f build/api/routes/reviews.js
           test -d build/api/node_modules
+          test -f build/worker/index.js
+          test -f build/worker/package.json
+          test -d build/worker/node_modules
 
 
           echo
@@ -499,6 +527,18 @@ jobs:
 
 
       # ======================================================================
+      # PACKAGE MODERATION WORKER
+      # ======================================================================
+
+      - name: Create Moderation Worker Lambda ZIP
+        run: |
+          set -euo pipefail
+          pushd build/worker > /dev/null
+          zip -qr ../worker.zip .
+          popd > /dev/null
+          ls -lh build/worker.zip
+
+      # ======================================================================
       # 17. CREATE S3 OBJECT KEYS
       # ======================================================================
 
@@ -511,11 +551,14 @@ jobs:
           MIGRATION_KEY="stack2/migration/${GITHUB_SHA}/migration.zip"
 
           API_KEY="stack2/api/${GITHUB_SHA}/api.zip"
+          WORKER_KEY="stack2/worker/${GITHUB_SHA}/worker.zip"
 
           echo "migration_key=${MIGRATION_KEY}" \
             >> "${GITHUB_OUTPUT}"
 
           echo "api_key=${API_KEY}" \
+            >> "${GITHUB_OUTPUT}"
+          echo "worker_key=${WORKER_KEY}" \
             >> "${GITHUB_OUTPUT}"
 
           echo "Migration S3 key:"
@@ -578,6 +621,21 @@ jobs:
 
 
       # ======================================================================
+      # UPLOAD MODERATION WORKER ZIP
+      # ======================================================================
+
+      - name: Upload Moderation Worker Lambda package
+        env:
+          ARTIFACT_BUCKET: ${{ steps.infrastructure.outputs.artifact_bucket }}
+          WORKER_KEY: ${{ steps.artifact_keys.outputs.worker_key }}
+        run: |
+          set -euo pipefail
+          aws s3 cp build/worker.zip \
+            "s3://${ARTIFACT_BUCKET}/${WORKER_KEY}" \
+            --region "${AWS_REGION}"
+          echo "Worker package uploaded."
+
+      # ======================================================================
       # 20. DEPLOY STACK 2
       # ======================================================================
 
@@ -598,6 +656,7 @@ jobs:
               LambdaRuntime="${LAMBDA_RUNTIME}" \
               MigrationLambdaS3Key="${{ steps.artifact_keys.outputs.migration_key }}" \
               ApiLambdaS3Key="${{ steps.artifact_keys.outputs.api_key }}" \
+              WorkerLambdaS3Key="${{ steps.artifact_keys.outputs.worker_key }}" \
               DeploymentVersion="${GITHUB_SHA}" \
               ApiStageName="${API_STAGE_NAME}" \
               AllowedOrigin="${ALLOWED_ORIGIN}" \

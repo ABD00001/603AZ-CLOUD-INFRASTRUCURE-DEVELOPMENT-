@@ -10,10 +10,11 @@
    Receives requests from API Gateway and routes them to the appropriate
    FairWork Pulse API handler.
 
- Current routes:
+ Routes:
 
    GET  /health
    GET  /profile
+
    GET  /companies
    GET  /companies/{companyId}
 
@@ -25,9 +26,14 @@
    POST /companies/{companyId}/reviews
    GET  /companies/{companyId}/reviews
 
+   GET  /admin/reviews/flagged
+   POST /admin/reviews/{reviewId}/approve
+   POST /admin/reviews/{reviewId}/reject
+
  Security:
    - Authentication and authorization are enforced by API Gateway,
      Cognito and the individual route handlers.
+   - Admin moderation requires Cognito ADMIN group membership.
    - Sensitive database and AWS errors are not returned to clients.
    - Employee identity must never be exposed through public review APIs.
 
@@ -93,6 +99,17 @@ const {
 
 
 // =============================================================================
+// ADMIN MODERATION ROUTES
+// =============================================================================
+
+const {
+  handleGetFlaggedReviews,
+  handleApproveReview,
+  handleRejectReview
+} = require('./routes/adminModeration');
+
+
+// =============================================================================
 // RESPONSE UTILITY
 // =============================================================================
 
@@ -106,25 +123,21 @@ const {
 // =============================================================================
 
 function getHttpMethod(event) {
-
   return (
     event.httpMethod ||
     event.requestContext?.http?.method ||
     ''
   ).toUpperCase();
-
 }
 
 
 function getPath(event) {
-
   return (
     event.resource ||
     event.rawPath ||
     event.path ||
     '/'
   );
-
 }
 
 
@@ -135,18 +148,12 @@ function getPath(event) {
 exports.handler = async (event) => {
 
   const method = getHttpMethod(event);
-
   const path = getPath(event);
-
 
   console.log(
     'FairWork API request:',
-    JSON.stringify({
-      method,
-      path
-    })
+    JSON.stringify({ method, path })
   );
-
 
   try {
 
@@ -154,13 +161,8 @@ exports.handler = async (event) => {
     // GET /health
     // ------------------------------------------------------------------------
 
-    if (
-      method === 'GET' &&
-      path === '/health'
-    ) {
-
+    if (method === 'GET' && path === '/health') {
       return await handleHealth();
-
     }
 
 
@@ -168,13 +170,8 @@ exports.handler = async (event) => {
     // GET /profile
     // ------------------------------------------------------------------------
 
-    if (
-      method === 'GET' &&
-      path === '/profile'
-    ) {
-
+    if (method === 'GET' && path === '/profile') {
       return await handleGetProfile(event);
-
     }
 
 
@@ -182,13 +179,8 @@ exports.handler = async (event) => {
     // GET /companies
     // ------------------------------------------------------------------------
 
-    if (
-      method === 'GET' &&
-      path === '/companies'
-    ) {
-
+    if (method === 'GET' && path === '/companies') {
       return await handleGetCompanies();
-
     }
 
 
@@ -200,9 +192,7 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/companies/{companyId}'
     ) {
-
       return await handleGetCompany(event);
-
     }
 
 
@@ -214,9 +204,7 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/workplace-associations'
     ) {
-
       return await handleGetWorkplaceAssociations(event);
-
     }
 
 
@@ -228,9 +216,7 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/workplace-associations/verify'
     ) {
-
       return await handleVerifyWorkplaceAssociation(event);
-
     }
 
 
@@ -242,56 +228,67 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/companies/{companyId}/verification-codes'
     ) {
-
       return await handleGenerateVerificationCodes(event);
-
     }
 
 
     // ------------------------------------------------------------------------
     // POST /companies/{companyId}/reviews
-    //
-    // Allows an authenticated, verified employee to submit a workplace
-    // review for a company with which they have a verified association.
-    //
-    // The review handler must:
-    //   - Validate the employee's identity and permissions.
-    //   - Validate review input.
-    //   - Save the review as PENDING_ANALYSIS.
-    //   - Submit the review for asynchronous moderation.
     // ------------------------------------------------------------------------
 
     if (
       method === 'POST' &&
       path === '/companies/{companyId}/reviews'
     ) {
-
       return await handleCreateReview(event);
-
     }
 
 
     // ------------------------------------------------------------------------
     // GET /companies/{companyId}/reviews
-    //
-    // Retrieves published workplace reviews for a company.
-    //
-    // Only reviews with the following moderation statuses should appear:
-    //
-    //   CLEAN
-    //   HUMAN_APPROVED
-    //
-    // Reviewer identity and internal moderation details must not be
-    // exposed in the response.
     // ------------------------------------------------------------------------
 
     if (
       method === 'GET' &&
       path === '/companies/{companyId}/reviews'
     ) {
-
       return await handleGetPublishedReviews(event);
+    }
 
+
+    // ------------------------------------------------------------------------
+    // GET /admin/reviews/flagged
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'GET' &&
+      path === '/admin/reviews/flagged'
+    ) {
+      return await handleGetFlaggedReviews(event);
+    }
+
+
+    // ------------------------------------------------------------------------
+    // POST /admin/reviews/{reviewId}/approve
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'POST' &&
+      path === '/admin/reviews/{reviewId}/approve'
+    ) {
+      return await handleApproveReview(event);
+    }
+
+
+    // ------------------------------------------------------------------------
+    // POST /admin/reviews/{reviewId}/reject
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'POST' &&
+      path === '/admin/reviews/{reviewId}/reject'
+    ) {
+      return await handleRejectReview(event);
     }
 
 
@@ -300,38 +297,21 @@ exports.handler = async (event) => {
     // ------------------------------------------------------------------------
 
     return response(404, {
-
       success: false,
-
       message: 'Route not found.'
-
     });
-
 
   } catch (error) {
 
-    /*
-     * Detailed error information goes to CloudWatch.
-     *
-     * Sensitive database or AWS information is not returned to the caller.
-     */
-
-    console.error(
-      'FairWork API error:',
-      {
-        name: error.name,
-        code: error.code,
-        message: error.message
-      }
-    );
-
+    console.error('FairWork API error:', {
+      name: error.name,
+      code: error.code,
+      message: error.message
+    });
 
     return response(500, {
-
       success: false,
-
       message: 'An internal server error occurred.'
-
     });
 
   }

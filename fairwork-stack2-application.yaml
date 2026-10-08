@@ -37,6 +37,10 @@ Parameters:
     Type: String
     Description: S3 object key containing the API Lambda package.
 
+  WorkerLambdaS3Key:
+    Type: String
+    Description: S3 object key containing moderation worker package.
+
   DeploymentVersion:
     Type: String
     Default: manual
@@ -143,6 +147,8 @@ Resources:
           DB_SECRET_ARN:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabaseSecretArn'
+
+          MODERATION_QUEUE_URL: !Ref ModerationQueue
 
           DEPLOYMENT_VERSION:
             !Ref DeploymentVersion
@@ -1212,6 +1218,125 @@ Resources:
           'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${FairWorkApi}/*/*/*'
 
 
+  ModerationDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-${EnvironmentName}-moderation-dlq'
+      MessageRetentionPeriod: 1209600
+
+  ModerationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-${EnvironmentName}-moderation'
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ModerationDeadLetterQueue.Arn
+        maxReceiveCount: 5
+
+  ModerationWorkerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${EnvironmentName}-moderation-worker'
+      Runtime: !Ref LambdaRuntime
+      Handler: index.handler
+      Role:
+        Fn::ImportValue: !Sub '${InfrastructureStackName}-LabRoleArn'
+      Timeout: 60
+      MemorySize: 256
+      Code:
+        S3Bucket:
+          Fn::ImportValue: !Sub '${InfrastructureStackName}-LambdaArtifactBucketName'
+        S3Key: !Ref WorkerLambdaS3Key
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub '${InfrastructureStackName}-LambdaSecurityGroupId'
+        SubnetIds:
+          - Fn::ImportValue: !Sub '${InfrastructureStackName}-PrivateAppSubnetAId'
+          - Fn::ImportValue: !Sub '${InfrastructureStackName}-PrivateAppSubnetBId'
+      Environment:
+        Variables:
+          DB_HOST:
+            Fn::ImportValue: !Sub '${InfrastructureStackName}-DatabaseEndpoint'
+          DB_PORT:
+            Fn::ImportValue: !Sub '${InfrastructureStackName}-DatabasePort'
+          DB_NAME:
+            Fn::ImportValue: !Sub '${InfrastructureStackName}-DatabaseName'
+          DB_SECRET_ARN:
+            Fn::ImportValue: !Sub '${InfrastructureStackName}-DatabaseSecretArn'
+
+  ModerationEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt ModerationQueue.Arn
+      FunctionName: !Ref ModerationWorkerFunction
+      BatchSize: 5
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+
+  CompanyReviewsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref CompanyResource
+      PathPart: reviews
+
+  CompanyReviewsPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref CompanyReviewsResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref FairWorkCognitoAuthorizer
+      RequestParameters:
+        method.request.path.companyId: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt ApiFunction.Arn
+
+  CompanyReviewsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref CompanyReviewsResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      RequestParameters:
+        method.request.path.companyId: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt ApiFunction.Arn
+
+  CompanyReviewsOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref CompanyReviewsResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
   # ===========================================================================
   # API DEPLOYMENT
   # ===========================================================================
@@ -1241,6 +1366,9 @@ Resources:
 
       - VerificationCodesPostMethod
       - VerificationCodesOptionsMethod
+      - CompanyReviewsPostMethod
+      - CompanyReviewsGetMethod
+      - CompanyReviewsOptionsMethod
 
     Properties:
 
@@ -1414,3 +1542,6 @@ Outputs:
 
     Value:
       !GetAtt FairWorkUserPool.Arn
+  ModerationQueueUrl:
+    Description: SQS queue URL for moderation.
+    Value: !Ref ModerationQueue

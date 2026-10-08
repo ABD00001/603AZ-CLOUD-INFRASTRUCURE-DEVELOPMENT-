@@ -152,6 +152,7 @@ jobs:
 
             "lambda/worker/index.js"
             "lambda/worker/package.json"
+            "lambda/worker/dictionaries.json"
 
             "lambda/api/services/database.js"
             "lambda/api/services/auth.js"
@@ -161,6 +162,7 @@ jobs:
             "database/migrations/V001__initial_schema.sql"
             "database/migrations/V002__moderation_rules.sql"
             "database/migrations/V003__map_employer_cognito_identity.sql"
+            "database/migrations/V004__fix_moderation_regex_escaping.sql"
 
             "database/seeds/development_seed.sql"
 
@@ -285,6 +287,10 @@ jobs:
 
           cp \
             database/migrations/V003__map_employer_cognito_identity.sql \
+            build/migration/migrations/
+
+          cp \
+            database/migrations/V004__fix_moderation_regex_escaping.sql \
             build/migration/migrations/
 
           cp \
@@ -424,6 +430,9 @@ jobs:
             build/migration/migrations/V003__map_employer_cognito_identity.sql
 
           test -f \
+            build/migration/migrations/V004__fix_moderation_regex_escaping.sql
+
+          test -f \
             build/migration/seeds/development_seed.sql
 
           test -d build/migration/node_modules
@@ -475,6 +484,7 @@ jobs:
           test -d build/api/node_modules
           test -f build/worker/index.js
           test -f build/worker/package.json
+          test -f build/worker/dictionaries.json
           test -d build/worker/node_modules
 
 

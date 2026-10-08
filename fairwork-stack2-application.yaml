@@ -1337,11 +1337,172 @@ Resources:
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
 
+  # ADMIN MODERATION ROUTES
+
+  AdminResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !GetAtt FairWorkApi.RootResourceId
+      PathPart: 'admin'
+
+  AdminReviewsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref AdminResource
+      PathPart: 'reviews'
+
+  AdminFlaggedResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref AdminReviewsResource
+      PathPart: 'flagged'
+
+  AdminReviewIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref AdminReviewsResource
+      PathPart: '{reviewId}'
+
+  AdminApproveResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref AdminReviewIdResource
+      PathPart: 'approve'
+
+  AdminRejectResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref AdminReviewIdResource
+      PathPart: 'reject'
+
+  AdminFlaggedGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref AdminFlaggedResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref FairWorkCognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt ApiFunction.Arn
+
+  AdminApprovePostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref AdminApproveResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref FairWorkCognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt ApiFunction.Arn
+
+  AdminRejectPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref AdminRejectResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref FairWorkCognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt ApiFunction.Arn
+
+  AdminFlaggedOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref AdminFlaggedResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  AdminApproveOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref AdminApproveResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  AdminRejectOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref AdminRejectResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
   # ===========================================================================
   # API DEPLOYMENT
   # ===========================================================================
 
-  FairWorkApiDeployment:
+  FairWorkApiDeploymentAdminV1:
     Type: AWS::ApiGateway::Deployment
 
     DependsOn:
@@ -1369,6 +1530,12 @@ Resources:
       - CompanyReviewsPostMethod
       - CompanyReviewsGetMethod
       - CompanyReviewsOptionsMethod
+      - AdminFlaggedGetMethod
+      - AdminApprovePostMethod
+      - AdminRejectPostMethod
+      - AdminFlaggedOptionsMethod
+      - AdminApproveOptionsMethod
+      - AdminRejectOptionsMethod
 
     Properties:
 
@@ -1392,7 +1559,7 @@ Resources:
         !Ref FairWorkApi
 
       DeploymentId:
-        !Ref FairWorkApiDeployment
+        !Ref FairWorkApiDeploymentAdminV1
 
       StageName:
         !Ref ApiStageName

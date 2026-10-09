@@ -1,10 +1,8 @@
 'use strict';
-
 const { getDatabaseConnection } = require('../services/database');
 const { getAuthenticatedUser } = require('../services/auth');
 const { response } = require('../utils/response');
 
-// GET /employee/reviews - only the authenticated employee's own reviews.
 async function handleGetEmployeeReviews(event) {
   const user = getAuthenticatedUser(event);
   if (!user || !user.cognitoSub) {
@@ -33,9 +31,13 @@ async function handleGetEmployeeReviews(event) {
               r.review_title AS reviewTitle,
               r.review_text AS reviewText,
               r.moderation_status AS moderationStatus,
-              r.submitted_at AS submittedAt
+              r.submitted_at AS submittedAt,
+              er.response_id AS responseId,
+              er.response_text AS responseText,
+              er.created_at AS respondedAt
        FROM reviews r
        INNER JOIN companies c ON c.company_id = r.company_id
+       LEFT JOIN employer_responses er ON er.review_id = r.review_id
        WHERE r.user_id = ?
        ORDER BY r.submitted_at DESC, r.review_id DESC
        LIMIT 100`,
@@ -50,9 +52,12 @@ async function handleGetEmployeeReviews(event) {
       HUMAN_APPROVED: 'PUBLISHED',
       HUMAN_REJECTED: 'REJECTED'
     };
-    const items = reviews.map(({ moderationStatus, ...review }) => ({
+    const items = reviews.map(({ moderationStatus, responseId, responseText, respondedAt, ...review }) => ({
       ...review,
-      status: publicStatus[moderationStatus] || 'PENDING'
+      status: publicStatus[moderationStatus] || 'PENDING',
+      employerResponse: ['CLEAN','HUMAN_APPROVED'].includes(moderationStatus) && responseId != null
+        ? { responseId, responseText, respondedAt }
+        : null
     }));
 
     return response(200, { success: true, count: items.length, reviews: items });

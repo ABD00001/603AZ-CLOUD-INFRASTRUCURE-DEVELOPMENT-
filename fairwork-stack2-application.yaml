@@ -20,13 +20,10 @@ Parameters:
       - nodejs18.x
   MigrationLambdaS3Key:
     Type: String
-    Description: S3 object key containing the Migration Lambda package.
   ApiLambdaS3Key:
     Type: String
-    Description: S3 object key containing the API Lambda package.
   WorkerLambdaS3Key:
     Type: String
-    Description: S3 object key containing moderation worker package.
   DeploymentVersion:
     Type: String
     Default: manual
@@ -36,7 +33,6 @@ Parameters:
   AllowedOrigin:
     Type: String
     Default: http://localhost:3000
-    Description: Allowed frontend origin for CORS.
   LogRetentionDays:
     Type: Number
     Default: 14
@@ -55,9 +51,6 @@ Resources:
     Properties:
       FunctionName:
         !Sub '${ProjectName}-${EnvironmentName}-database-migration'
-      Description: >
-        Applies version-controlled FairWork Pulse SQL migrations
-        to the private RDS MySQL database.
       Runtime:
         !Ref LambdaRuntime
       Handler:
@@ -168,7 +161,6 @@ Resources:
     Type: AWS::Cognito::UserPoolGroup
     Properties:
       GroupName: EMPLOYEE
-      Description: FairWork Pulse employee accounts.
       Precedence: 30
       UserPoolId:
         !Ref FairWorkUserPool
@@ -176,7 +168,6 @@ Resources:
     Type: AWS::Cognito::UserPoolGroup
     Properties:
       GroupName: EMPLOYER
-      Description: FairWork Pulse employer accounts.
       Precedence: 20
       UserPoolId:
         !Ref FairWorkUserPool
@@ -184,7 +175,6 @@ Resources:
     Type: AWS::Cognito::UserPoolGroup
     Properties:
       GroupName: ADMIN
-      Description: FairWork Pulse administrator accounts.
       Precedence: 10
       UserPoolId:
         !Ref FairWorkUserPool
@@ -193,7 +183,6 @@ Resources:
     Properties:
       FunctionName:
         !Sub '${ProjectName}-${EnvironmentName}-api'
-      Description: FairWork Pulse application API.
       Runtime:
         !Ref LambdaRuntime
       Handler:
@@ -256,7 +245,6 @@ Resources:
     Properties:
       Name:
         !Sub '${ProjectName}-${EnvironmentName}-api'
-      Description: REST API for FairWork Pulse.
       EndpointConfiguration:
         Types:
           - REGIONAL
@@ -320,12 +308,7 @@ Resources:
                 "'GET,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   ProfileResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -377,12 +360,7 @@ Resources:
                 "'GET,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   CompaniesResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -434,12 +412,7 @@ Resources:
                 "'GET,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   CompanyResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -493,12 +466,7 @@ Resources:
                 "'GET,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   VerificationCodesResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -552,12 +520,7 @@ Resources:
                 "'POST,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   WorkplaceAssociationsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -609,12 +572,7 @@ Resources:
                 "'GET,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   WorkplaceAssociationVerifyResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -666,12 +624,7 @@ Resources:
                 "'POST,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   ApiGatewayInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -789,12 +742,7 @@ Resources:
               method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
               method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -890,12 +838,7 @@ Resources:
               method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
               method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminApproveOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -913,12 +856,7 @@ Resources:
               method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
               method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminRejectOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -936,12 +874,7 @@ Resources:
               method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
               method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminCompaniesResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -1013,12 +946,7 @@ Resources:
               method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
               method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminCompanyIdOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1036,12 +964,7 @@ Resources:
               method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
               method.response.header.Access-Control-Allow-Methods: "'PATCH,DELETE,OPTIONS'"
               method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   EmployeeResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -1087,12 +1010,7 @@ Resources:
               method.response.header.Access-Control-Allow-Origin: "'*'"
             ResponseTemplates:
               application/json: '{}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   EmployeeWellbeingResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -1138,12 +1056,7 @@ Resources:
               method.response.header.Access-Control-Allow-Origin: "'*'"
             ResponseTemplates:
               application/json: '{}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   EmployeeWellbeingInsightsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -1183,12 +1096,7 @@ Resources:
               method.response.header.Access-Control-Allow-Origin: "'*'"
             ResponseTemplates:
               application/json: '{}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   EmployerResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -1234,12 +1142,7 @@ Resources:
               method.response.header.Access-Control-Allow-Origin: "'*'"
             ResponseTemplates:
               application/json: '{}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   EmployerReviewsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -1279,12 +1182,7 @@ Resources:
               method.response.header.Access-Control-Allow-Origin: "'*'"
             ResponseTemplates:
               application/json: '{}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   EmployerReviewIdResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -1330,13 +1228,54 @@ Resources:
               method.response.header.Access-Control-Allow-Origin: "'*'"
             ResponseTemplates:
               application/json: '{}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
-  FairWorkApiDeploymentEmployerResponseV1:
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
+  EmployerAnalyticsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref EmployerResource
+      PathPart: analytics
+  EmployerWellbeingAnalyticsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref EmployerAnalyticsResource
+      PathPart: wellbeing
+  EmployerWellbeingAnalyticsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref EmployerWellbeingAnalyticsResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref FairWorkCognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt ApiFunction.Arn
+  EmployerWellbeingAnalyticsOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref EmployerWellbeingAnalyticsResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: '{}'
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
+  FairWorkApiDeploymentEmployerAnalyticsV1:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
       - HealthGetMethod
@@ -1379,6 +1318,8 @@ Resources:
       - EmployerReviewsOptionsMethod
       - EmployerReviewResponsePostMethod
       - EmployerReviewResponseOptionsMethod
+      - EmployerWellbeingAnalyticsGetMethod
+      - EmployerWellbeingAnalyticsOptionsMethod
     Properties:
       RestApiId:
         !Ref FairWorkApi
@@ -1390,73 +1331,54 @@ Resources:
       RestApiId:
         !Ref FairWorkApi
       DeploymentId:
-        !Ref FairWorkApiDeploymentEmployerResponseV1
+        !Ref FairWorkApiDeploymentEmployerAnalyticsV1
       StageName:
         !Ref ApiStageName
-      Description: FairWork Pulse PoC API stage.
 Outputs:
   MigrationFunctionName:
-    Description: Database Migration Lambda name.
     Value:
       !Ref MigrationFunction
   MigrationFunctionArn:
-    Description: Database Migration Lambda ARN.
     Value:
       !GetAtt MigrationFunction.Arn
   ApiFunctionName:
-    Description: FairWork Pulse API Lambda name.
     Value:
       !Ref ApiFunction
   ApiFunctionArn:
-    Description: FairWork Pulse API Lambda ARN.
     Value:
       !GetAtt ApiFunction.Arn
   ApiId:
-    Description: API Gateway REST API ID.
     Value:
       !Ref FairWorkApi
   ApiBaseUrl:
-    Description: FairWork Pulse API base URL.
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}'
   HealthUrl:
-    Description: Public API health endpoint.
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/health'
   ProfileUrl:
-    Description: Cognito protected profile endpoint.
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/profile'
   CompaniesUrl:
-    Description: Cognito protected companies endpoint.
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/companies'
   WorkplaceAssociationsUrl:
-    Description: Cognito protected workplace associations endpoint.
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/workplace-associations'
   WorkplaceAssociationVerifyUrl:
-    Description: Employee workplace verification-code redemption endpoint.
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/workplace-associations/verify'
   VerificationCodesUrlTemplate:
-    Description: >
-      Cognito protected verification code generation endpoint.
-      Replace {companyId} with the target company ID.
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/companies/{companyId}/verification-codes'
   UserPoolId:
-    Description: Cognito User Pool ID.
     Value:
       !Ref FairWorkUserPool
   UserPoolClientId:
-    Description: Cognito application client ID.
     Value:
       !Ref FairWorkUserPoolClient
   UserPoolArn:
-    Description: Cognito User Pool ARN.
     Value:
       !GetAtt FairWorkUserPool.Arn
   ModerationQueueUrl:
-    Description: SQS queue URL for moderation.
     Value: !Ref ModerationQueue

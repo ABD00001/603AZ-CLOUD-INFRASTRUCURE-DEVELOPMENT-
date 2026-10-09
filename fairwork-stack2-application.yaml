@@ -1728,10 +1728,60 @@ Resources:
             method.response.header.Access-Control-Allow-Origin: true
 
   # ===========================================================================
+  # EMPLOYEE WELLBEING INSIGHTS
+  EmployeeWellbeingInsightsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref EmployeeWellbeingResource
+      PathPart: insights
+
+  EmployeeWellbeingInsightsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref EmployeeWellbeingInsightsResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref FairWorkCognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt ApiFunction.Arn
+
+  EmployeeWellbeingInsightsOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref EmployeeWellbeingInsightsResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: '{}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # ===========================================================================
   # API DEPLOYMENT
   # ===========================================================================
 
-  FairWorkApiDeploymentWellbeingV1:
+  FairWorkApiDeploymentInsightsV1:
     Type: AWS::ApiGateway::Deployment
 
     DependsOn:
@@ -1774,6 +1824,8 @@ Resources:
       - EmployeeReviewsOptionsMethod
       - EmployeeWellbeingCheckinsPostMethod
       - EmployeeWellbeingCheckinsOptionsMethod
+      - EmployeeWellbeingInsightsGetMethod
+      - EmployeeWellbeingInsightsOptionsMethod
 
     Properties:
 
@@ -1797,7 +1849,7 @@ Resources:
         !Ref FairWorkApi
 
       DeploymentId:
-        !Ref FairWorkApiDeploymentWellbeingV1
+        !Ref FairWorkApiDeploymentInsightsV1
 
       StageName:
         !Ref ApiStageName

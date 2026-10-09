@@ -117,6 +117,7 @@ const { handleGetEmployeeReviews } = require('./routes/employeeReviews');
 const { handleCreateWellbeingCheckin } = require('./routes/wellbeing');
 const { handleGetWellbeingInsights } = require('./routes/wellbeingInsights');
 const { handleGetEmployerCompany } = require('./routes/employerCompany');
+const { handleGetEmployerReviews } = require('./routes/employerReviews');
 
 
 // =============================================================================
@@ -326,6 +327,10 @@ exports.handler = async (event) => {
     }
 
     // ------------------------------------------------------------------------
+    if (method === 'GET' && path === '/employer/reviews') {
+      return await handleGetEmployerReviews(event);
+    }
+
     if (method === 'GET' && path === '/employer/company') {
       return await handleGetEmployerCompany(event);
     }

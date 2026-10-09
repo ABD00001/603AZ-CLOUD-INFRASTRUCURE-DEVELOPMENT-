@@ -38,14 +38,21 @@ async function handleGetEmployerReviews(event) {
     } else {
       return response(400, { success: false, message: 'Specify companyId when managing multiple companies.', companies: companies.map(c => ({companyId:c.companyId,name:c.name})) });
     }
-    const [reviews] = await connection.execute(`
-      SELECT review_id AS reviewId, company_id AS companyId, rating,
-             review_title AS reviewTitle, review_text AS reviewText,
-             submitted_at AS submittedAt
-      FROM reviews
-      WHERE company_id = ? AND moderation_status IN ('CLEAN','HUMAN_APPROVED')
-      ORDER BY submitted_at DESC, review_id DESC
+    const [rows] = await connection.execute(`
+      SELECT r.review_id AS reviewId, r.company_id AS companyId, r.rating,
+             r.review_title AS reviewTitle, r.review_text AS reviewText,
+             r.submitted_at AS submittedAt,
+             er.response_id AS responseId, er.response_text AS responseText,
+             er.created_at AS respondedAt
+      FROM reviews r
+      LEFT JOIN employer_responses er ON er.review_id = r.review_id
+      WHERE r.company_id = ? AND r.moderation_status IN ('CLEAN','HUMAN_APPROVED')
+      ORDER BY r.submitted_at DESC, r.review_id DESC
       LIMIT 100`, [company.companyId]);
+    const reviews = rows.map(({responseId, responseText, respondedAt, ...review}) => ({
+      ...review,
+      employerResponse: responseId == null ? null : {responseId, responseText, respondedAt}
+    }));
     return response(200, { success: true, company: { companyId: company.companyId, name: company.name }, count: reviews.length, reviews });
   } finally {
     await connection.end();

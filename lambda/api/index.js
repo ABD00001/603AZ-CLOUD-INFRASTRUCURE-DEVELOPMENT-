@@ -104,6 +104,13 @@ const {
 
 
 // =============================================================================
+// EMPLOYEE REVIEW HISTORY
+// =============================================================================
+
+const { handleGetEmployeeReviews } = require('./routes/employeeReviews');
+
+
+// =============================================================================
 // ADMIN MODERATION ROUTES
 // =============================================================================
 
@@ -282,6 +289,15 @@ exports.handler = async (event) => {
       path === '/companies/{companyId}/reviews'
     ) {
       return await handleGetPublishedReviews(event);
+    }
+
+
+    // ------------------------------------------------------------------------
+    // GET /employee/reviews
+    // ------------------------------------------------------------------------
+
+    if (method === 'GET' && path === '/employee/reviews') {
+      return await handleGetEmployeeReviews(event);
     }
 
 

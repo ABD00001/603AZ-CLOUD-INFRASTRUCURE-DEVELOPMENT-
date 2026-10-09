@@ -41,7 +41,6 @@ async function handleCreateReview(event) {
       [companyId, rows[0].association_id, rating, title, reviewText.trim(), user.cognitoSub]);
     if (result.affectedRows !== 1) return response(403,{success:false,message:'Active profile required.'});
     reviewId = result.insertId;
-    // If SQS fails, the review stays non-public and is marked ANALYSIS_FAILED.
     try {
       await sqs.send(new SendMessageCommand({QueueUrl:process.env.MODERATION_QUEUE_URL, MessageBody:JSON.stringify({reviewId})}));
     } catch (error) {
@@ -59,11 +58,20 @@ async function handleGetPublishedReviews(event) {
   const connection = await getDatabaseConnection();
   try {
     const [rows] = await connection.execute(`
-      SELECT review_id AS reviewId, company_id AS companyId, rating,
-             review_title AS reviewTitle, review_text AS reviewText, submitted_at AS submittedAt
-      FROM reviews WHERE company_id = ? AND moderation_status IN ('CLEAN','HUMAN_APPROVED')
-      ORDER BY submitted_at DESC LIMIT 50`, [companyId]);
-    return response(200,{success:true,count:rows.length,reviews:rows});
+      SELECT r.review_id AS reviewId, r.company_id AS companyId, r.rating,
+             r.review_title AS reviewTitle, r.review_text AS reviewText,
+             r.submitted_at AS submittedAt,
+             er.response_id AS responseId, er.response_text AS responseText,
+             er.created_at AS respondedAt
+      FROM reviews r
+      LEFT JOIN employer_responses er ON er.review_id = r.review_id
+      WHERE r.company_id = ? AND r.moderation_status IN ('CLEAN','HUMAN_APPROVED')
+      ORDER BY r.submitted_at DESC LIMIT 50`, [companyId]);
+    const reviews = rows.map(({responseId, responseText, respondedAt, ...review}) => ({
+      ...review,
+      employerResponse: responseId == null ? null : {responseId, responseText, respondedAt}
+    }));
+    return response(200,{success:true,count:reviews.length,reviews});
   } finally { await connection.end(); }
 }
 module.exports = {handleCreateReview,handleGetPublishedReviews};

@@ -1,59 +1,42 @@
 AWSTemplateFormatVersion: '2010-09-09'
-
 Description: >
   FairWork Pulse Stack 2 - Application services.
   Deploys database migrations, Cognito authentication,
   API Gateway REST API and the FairWork Pulse API Lambda.
-
-# =============================================================================
-# PARAMETERS
-# =============================================================================
-
 Parameters:
-
   ProjectName:
     Type: String
     Default: fairwork-pulse
-
   EnvironmentName:
     Type: String
     Default: poc
-
   InfrastructureStackName:
     Type: String
     Default: fairwork-infrastructure
-
   LambdaRuntime:
     Type: String
     Default: nodejs18.x
     AllowedValues:
       - nodejs18.x
-
   MigrationLambdaS3Key:
     Type: String
     Description: S3 object key containing the Migration Lambda package.
-
   ApiLambdaS3Key:
     Type: String
     Description: S3 object key containing the API Lambda package.
-
   WorkerLambdaS3Key:
     Type: String
     Description: S3 object key containing moderation worker package.
-
   DeploymentVersion:
     Type: String
     Default: manual
-
   ApiStageName:
     Type: String
     Default: poc
-
   AllowedOrigin:
     Type: String
     Default: http://localhost:3000
     Description: Allowed frontend origin for CORS.
-
   LogRetentionDays:
     Type: Number
     Default: 14
@@ -66,1164 +49,646 @@ Parameters:
       - 30
       - 60
       - 90
-
-
-# =============================================================================
-# RESOURCES
-# =============================================================================
-
 Resources:
-
-  # ===========================================================================
-  # DATABASE MIGRATION LAMBDA
-  # ===========================================================================
-
   MigrationFunction:
     Type: AWS::Lambda::Function
-
     Properties:
-
       FunctionName:
         !Sub '${ProjectName}-${EnvironmentName}-database-migration'
-
       Description: >
         Applies version-controlled FairWork Pulse SQL migrations
         to the private RDS MySQL database.
-
       Runtime:
         !Ref LambdaRuntime
-
       Handler:
         index.handler
-
       Role:
         Fn::ImportValue:
           !Sub '${InfrastructureStackName}-LabRoleArn'
-
       MemorySize: 256
       Timeout: 120
       ReservedConcurrentExecutions: 1
-
       Code:
-
         S3Bucket:
           Fn::ImportValue:
             !Sub '${InfrastructureStackName}-LambdaArtifactBucketName'
-
         S3Key:
           !Ref MigrationLambdaS3Key
-
       VpcConfig:
-
         SecurityGroupIds:
-
           - Fn::ImportValue:
               !Sub '${InfrastructureStackName}-LambdaSecurityGroupId'
-
         SubnetIds:
-
           - Fn::ImportValue:
               !Sub '${InfrastructureStackName}-PrivateAppSubnetAId'
-
           - Fn::ImportValue:
               !Sub '${InfrastructureStackName}-PrivateAppSubnetBId'
-
       Environment:
-
         Variables:
-
           DB_HOST:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabaseEndpoint'
-
           DB_PORT:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabasePort'
-
           DB_NAME:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabaseName'
-
           DB_SECRET_ARN:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabaseSecretArn'
-
           DEPLOYMENT_VERSION:
             !Ref DeploymentVersion
-
       Tags:
-
         - Key: Project
           Value: FairWorkPulse
-
         - Key: Environment
           Value: !Ref EnvironmentName
-
         - Key: Component
           Value: DatabaseMigration
-
-
   MigrationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
-
     Properties:
-
       LogGroupName:
         !Sub '/aws/lambda/${ProjectName}-${EnvironmentName}-database-migration'
-
       RetentionInDays:
         !Ref LogRetentionDays
-
-
-  # ===========================================================================
-  # COGNITO USER POOL
-  # ===========================================================================
-
   FairWorkUserPool:
     Type: AWS::Cognito::UserPool
-
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
-
     Properties:
-
       UserPoolName:
         !Sub '${ProjectName}-${EnvironmentName}-users'
-
       UsernameAttributes:
         - email
-
       AutoVerifiedAttributes:
         - email
-
       UsernameConfiguration:
         CaseSensitive: false
-
       Policies:
-
         PasswordPolicy:
-
           MinimumLength: 8
           RequireUppercase: true
           RequireLowercase: true
           RequireNumbers: true
           RequireSymbols: true
           TemporaryPasswordValidityDays: 7
-
       AccountRecoverySetting:
-
         RecoveryMechanisms:
-
           - Name: verified_email
             Priority: 1
-
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: false
-
       UserPoolTags:
         Project: FairWorkPulse
         Environment: !Ref EnvironmentName
-
-
-  # ===========================================================================
-  # COGNITO APPLICATION CLIENT
-  # ===========================================================================
-
   FairWorkUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
-
     Properties:
-
       ClientName:
         !Sub '${ProjectName}-${EnvironmentName}-web-client'
-
       UserPoolId:
         !Ref FairWorkUserPool
-
       GenerateSecret: false
-
       PreventUserExistenceErrors:
         ENABLED
-
       ExplicitAuthFlows:
-
         - ALLOW_USER_SRP_AUTH
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
-
       AccessTokenValidity: 1
       IdTokenValidity: 1
       RefreshTokenValidity: 30
-
       TokenValidityUnits:
-
         AccessToken: hours
         IdToken: hours
         RefreshToken: days
-
-
-  # ===========================================================================
-  # COGNITO GROUPS
-  # ===========================================================================
-
   EmployeeGroup:
     Type: AWS::Cognito::UserPoolGroup
-
     Properties:
-
       GroupName: EMPLOYEE
-
       Description: FairWork Pulse employee accounts.
-
       Precedence: 30
-
       UserPoolId:
         !Ref FairWorkUserPool
-
-
   EmployerGroup:
     Type: AWS::Cognito::UserPoolGroup
-
     Properties:
-
       GroupName: EMPLOYER
-
       Description: FairWork Pulse employer accounts.
-
       Precedence: 20
-
       UserPoolId:
         !Ref FairWorkUserPool
-
-
   AdminGroup:
     Type: AWS::Cognito::UserPoolGroup
-
     Properties:
-
       GroupName: ADMIN
-
       Description: FairWork Pulse administrator accounts.
-
       Precedence: 10
-
       UserPoolId:
         !Ref FairWorkUserPool
-
-
-  # ===========================================================================
-  # API LAMBDA
-  # ===========================================================================
-
   ApiFunction:
     Type: AWS::Lambda::Function
-
     Properties:
-
       FunctionName:
         !Sub '${ProjectName}-${EnvironmentName}-api'
-
       Description: FairWork Pulse application API.
-
       Runtime:
         !Ref LambdaRuntime
-
       Handler:
         index.handler
-
       Role:
         Fn::ImportValue:
           !Sub '${InfrastructureStackName}-LabRoleArn'
-
       MemorySize: 256
       Timeout: 30
-
       Code:
-
         S3Bucket:
           Fn::ImportValue:
             !Sub '${InfrastructureStackName}-LambdaArtifactBucketName'
-
         S3Key:
           !Ref ApiLambdaS3Key
-
       VpcConfig:
-
         SecurityGroupIds:
-
           - Fn::ImportValue:
               !Sub '${InfrastructureStackName}-LambdaSecurityGroupId'
-
         SubnetIds:
-
           - Fn::ImportValue:
               !Sub '${InfrastructureStackName}-PrivateAppSubnetAId'
-
           - Fn::ImportValue:
               !Sub '${InfrastructureStackName}-PrivateAppSubnetBId'
-
       Environment:
-
         Variables:
-
           DB_HOST:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabaseEndpoint'
-
           DB_PORT:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabasePort'
-
           DB_NAME:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabaseName'
-
           DB_SECRET_ARN:
             Fn::ImportValue:
               !Sub '${InfrastructureStackName}-DatabaseSecretArn'
-
           MODERATION_QUEUE_URL: !Ref ModerationQueue
-
           ALLOWED_ORIGIN:
             !Ref AllowedOrigin
-
           DEPLOYMENT_VERSION:
             !Ref DeploymentVersion
-
       Tags:
-
         - Key: Project
           Value: FairWorkPulse
-
         - Key: Environment
           Value: !Ref EnvironmentName
-
         - Key: Component
           Value: API
-
-
   ApiFunctionLogGroup:
     Type: AWS::Logs::LogGroup
-
     Properties:
-
       LogGroupName:
         !Sub '/aws/lambda/${ProjectName}-${EnvironmentName}-api'
-
       RetentionInDays:
         !Ref LogRetentionDays
-
-
-  # ===========================================================================
-  # API GATEWAY REST API
-  # ===========================================================================
-
   FairWorkApi:
     Type: AWS::ApiGateway::RestApi
-
     Properties:
-
       Name:
         !Sub '${ProjectName}-${EnvironmentName}-api'
-
       Description: REST API for FairWork Pulse.
-
       EndpointConfiguration:
-
         Types:
           - REGIONAL
-
-
-  # ===========================================================================
-  # COGNITO AUTHORIZER
-  # ===========================================================================
-
   FairWorkCognitoAuthorizer:
     Type: AWS::ApiGateway::Authorizer
-
     Properties:
-
       Name: FairWorkCognitoAuthorizer
-
       Type: COGNITO_USER_POOLS
-
       RestApiId:
         !Ref FairWorkApi
-
       IdentitySource:
         method.request.header.Authorization
-
       ProviderARNs:
-
         - !GetAtt FairWorkUserPool.Arn
-
-
-  # ===========================================================================
-  # /health
-  # ===========================================================================
-
   HealthResource:
     Type: AWS::ApiGateway::Resource
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ParentId:
         !GetAtt FairWorkApi.RootResourceId
-
       PathPart: health
-
-
   HealthGetMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref HealthResource
-
       HttpMethod: GET
-
       AuthorizationType: NONE
-
       Integration:
-
         Type: AWS_PROXY
-
         IntegrationHttpMethod: POST
-
         Uri:
           !Sub
             - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
             - LambdaArn: !GetAtt ApiFunction.Arn
-
-
   HealthOptionsMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref HealthResource
-
       HttpMethod: OPTIONS
-
       AuthorizationType: NONE
-
       Integration:
-
         Type: MOCK
-
         RequestTemplates:
-
           application/json: |
             {
               "statusCode": 200
             }
-
         IntegrationResponses:
-
           - StatusCode: 200
-
             ResponseParameters:
-
               method.response.header.Access-Control-Allow-Headers:
                 "'Content-Type,Authorization'"
-
               method.response.header.Access-Control-Allow-Methods:
                 "'GET,OPTIONS'"
-
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-
       MethodResponses:
-
         - StatusCode: 200
-
           ResponseParameters:
-
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-
-  # ===========================================================================
-  # /profile
-  # ===========================================================================
-
   ProfileResource:
     Type: AWS::ApiGateway::Resource
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ParentId:
         !GetAtt FairWorkApi.RootResourceId
-
       PathPart: profile
-
-
   ProfileGetMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref ProfileResource
-
       HttpMethod: GET
-
       AuthorizationType: COGNITO_USER_POOLS
-
       AuthorizerId:
         !Ref FairWorkCognitoAuthorizer
-
       Integration:
-
         Type: AWS_PROXY
-
         IntegrationHttpMethod: POST
-
         Uri:
           !Sub
             - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
             - LambdaArn: !GetAtt ApiFunction.Arn
-
-
   ProfileOptionsMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref ProfileResource
-
       HttpMethod: OPTIONS
-
       AuthorizationType: NONE
-
       Integration:
-
         Type: MOCK
-
         RequestTemplates:
-
           application/json: |
             {
               "statusCode": 200
             }
-
         IntegrationResponses:
-
           - StatusCode: 200
-
             ResponseParameters:
-
               method.response.header.Access-Control-Allow-Headers:
                 "'Content-Type,Authorization'"
-
               method.response.header.Access-Control-Allow-Methods:
                 "'GET,OPTIONS'"
-
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-
       MethodResponses:
-
         - StatusCode: 200
-
           ResponseParameters:
-
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-
-  # ===========================================================================
-  # /companies
-  # ===========================================================================
-
   CompaniesResource:
     Type: AWS::ApiGateway::Resource
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ParentId:
         !GetAtt FairWorkApi.RootResourceId
-
       PathPart: companies
-
-
   CompaniesGetMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref CompaniesResource
-
       HttpMethod: GET
-
       AuthorizationType: COGNITO_USER_POOLS
-
       AuthorizerId:
         !Ref FairWorkCognitoAuthorizer
-
       Integration:
-
         Type: AWS_PROXY
-
         IntegrationHttpMethod: POST
-
         Uri:
           !Sub
             - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
             - LambdaArn: !GetAtt ApiFunction.Arn
-
-
   CompaniesOptionsMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref CompaniesResource
-
       HttpMethod: OPTIONS
-
       AuthorizationType: NONE
-
       Integration:
-
         Type: MOCK
-
         RequestTemplates:
-
           application/json: |
             {
               "statusCode": 200
             }
-
         IntegrationResponses:
-
           - StatusCode: 200
-
             ResponseParameters:
-
               method.response.header.Access-Control-Allow-Headers:
                 "'Content-Type,Authorization'"
-
               method.response.header.Access-Control-Allow-Methods:
                 "'GET,OPTIONS'"
-
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-
       MethodResponses:
-
         - StatusCode: 200
-
           ResponseParameters:
-
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-
-  # ===========================================================================
-  # /companies/{companyId}
-  # ===========================================================================
-
   CompanyResource:
     Type: AWS::ApiGateway::Resource
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ParentId:
         !Ref CompaniesResource
-
       PathPart: '{companyId}'
-
-
   CompanyGetMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref CompanyResource
-
       HttpMethod: GET
-
       AuthorizationType: COGNITO_USER_POOLS
-
       AuthorizerId:
         !Ref FairWorkCognitoAuthorizer
-
       RequestParameters:
-
         method.request.path.companyId: true
-
       Integration:
-
         Type: AWS_PROXY
-
         IntegrationHttpMethod: POST
-
         Uri:
           !Sub
             - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
             - LambdaArn: !GetAtt ApiFunction.Arn
-
-
   CompanyOptionsMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref CompanyResource
-
       HttpMethod: OPTIONS
-
       AuthorizationType: NONE
-
       Integration:
-
         Type: MOCK
-
         RequestTemplates:
-
           application/json: |
             {
               "statusCode": 200
             }
-
         IntegrationResponses:
-
           - StatusCode: 200
-
             ResponseParameters:
-
               method.response.header.Access-Control-Allow-Headers:
                 "'Content-Type,Authorization'"
-
               method.response.header.Access-Control-Allow-Methods:
                 "'GET,OPTIONS'"
-
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-
       MethodResponses:
-
         - StatusCode: 200
-
           ResponseParameters:
-
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-
-  # ===========================================================================
-  # /companies/{companyId}/verification-codes
-  # ===========================================================================
-
   VerificationCodesResource:
     Type: AWS::ApiGateway::Resource
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ParentId:
         !Ref CompanyResource
-
       PathPart: verification-codes
-
-
-  # ===========================================================================
-  # POST /companies/{companyId}/verification-codes
-  # ===========================================================================
-
   VerificationCodesPostMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref VerificationCodesResource
-
       HttpMethod: POST
-
       AuthorizationType: COGNITO_USER_POOLS
-
       AuthorizerId:
         !Ref FairWorkCognitoAuthorizer
-
       RequestParameters:
-
         method.request.path.companyId: true
-
       Integration:
-
         Type: AWS_PROXY
-
         IntegrationHttpMethod: POST
-
         Uri:
           !Sub
             - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
             - LambdaArn: !GetAtt ApiFunction.Arn
-
-
-  # ===========================================================================
-  # OPTIONS /companies/{companyId}/verification-codes
-  # ===========================================================================
-
   VerificationCodesOptionsMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref VerificationCodesResource
-
       HttpMethod: OPTIONS
-
       AuthorizationType: NONE
-
       Integration:
-
         Type: MOCK
-
         RequestTemplates:
-
           application/json: |
             {
               "statusCode": 200
             }
-
         IntegrationResponses:
-
           - StatusCode: 200
-
             ResponseParameters:
-
               method.response.header.Access-Control-Allow-Headers:
                 "'Content-Type,Authorization'"
-
               method.response.header.Access-Control-Allow-Methods:
                 "'POST,OPTIONS'"
-
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-
       MethodResponses:
-
         - StatusCode: 200
-
           ResponseParameters:
-
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-
-  # ===========================================================================
-  # /workplace-associations
-  # ===========================================================================
-
   WorkplaceAssociationsResource:
     Type: AWS::ApiGateway::Resource
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ParentId:
         !GetAtt FairWorkApi.RootResourceId
-
       PathPart: workplace-associations
-
-
-  # ===========================================================================
-  # GET /workplace-associations
-  #
-  # Returns workplace associations belonging only to the authenticated user.
-  #
-  # User identity is derived from the Cognito JWT by the API Lambda.
-  # The client does not provide a user ID.
-  # ===========================================================================
-
   WorkplaceAssociationsGetMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref WorkplaceAssociationsResource
-
       HttpMethod: GET
-
       AuthorizationType: COGNITO_USER_POOLS
-
       AuthorizerId:
         !Ref FairWorkCognitoAuthorizer
-
       Integration:
-
         Type: AWS_PROXY
-
         IntegrationHttpMethod: POST
-
         Uri:
           !Sub
             - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
             - LambdaArn: !GetAtt ApiFunction.Arn
-
-
-  # ===========================================================================
-  # OPTIONS /workplace-associations
-  #
-  # Public CORS preflight method.
-  # Authentication is deliberately not required for OPTIONS.
-  # ===========================================================================
-
   WorkplaceAssociationsOptionsMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref WorkplaceAssociationsResource
-
       HttpMethod: OPTIONS
-
       AuthorizationType: NONE
-
       Integration:
-
         Type: MOCK
-
         RequestTemplates:
-
           application/json: |
             {
               "statusCode": 200
             }
-
         IntegrationResponses:
-
           - StatusCode: 200
-
             ResponseParameters:
-
               method.response.header.Access-Control-Allow-Headers:
                 "'Content-Type,Authorization'"
-
               method.response.header.Access-Control-Allow-Methods:
                 "'GET,OPTIONS'"
-
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-
       MethodResponses:
-
         - StatusCode: 200
-
           ResponseParameters:
-
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-
-  # ===========================================================================
-  # /workplace-associations/verify
-  # ===========================================================================
-
   WorkplaceAssociationVerifyResource:
     Type: AWS::ApiGateway::Resource
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ParentId:
         !Ref WorkplaceAssociationsResource
-
       PathPart: verify
-
-
-  # ===========================================================================
-  # POST /workplace-associations/verify
-  # ===========================================================================
-
   WorkplaceAssociationVerifyPostMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref WorkplaceAssociationVerifyResource
-
       HttpMethod: POST
-
       AuthorizationType: COGNITO_USER_POOLS
-
       AuthorizerId:
         !Ref FairWorkCognitoAuthorizer
-
       Integration:
-
         Type: AWS_PROXY
-
         IntegrationHttpMethod: POST
-
         Uri:
           !Sub
             - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
             - LambdaArn: !GetAtt ApiFunction.Arn
-
-
-  # ===========================================================================
-  # OPTIONS /workplace-associations/verify
-  # ===========================================================================
-
   WorkplaceAssociationVerifyOptionsMethod:
     Type: AWS::ApiGateway::Method
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       ResourceId:
         !Ref WorkplaceAssociationVerifyResource
-
       HttpMethod: OPTIONS
-
       AuthorizationType: NONE
-
       Integration:
-
         Type: MOCK
-
         RequestTemplates:
-
           application/json: |
             {
               "statusCode": 200
             }
-
         IntegrationResponses:
-
           - StatusCode: 200
-
             ResponseParameters:
-
               method.response.header.Access-Control-Allow-Headers:
                 "'Content-Type,Authorization'"
-
               method.response.header.Access-Control-Allow-Methods:
                 "'POST,OPTIONS'"
-
               method.response.header.Access-Control-Allow-Origin:
                 !Sub "'${AllowedOrigin}'"
-
       MethodResponses:
-
         - StatusCode: 200
-
           ResponseParameters:
-
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-
-  # ===========================================================================
-  # API GATEWAY PERMISSION TO INVOKE API LAMBDA
-  # ===========================================================================
-
   ApiGatewayInvokePermission:
     Type: AWS::Lambda::Permission
-
     Properties:
-
       Action:
         lambda:InvokeFunction
-
       FunctionName:
         !Ref ApiFunction
-
       Principal:
         apigateway.amazonaws.com
-
       SourceArn:
         !Sub
           'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${FairWorkApi}/*/*/*'
-
-
   ModerationDeadLetterQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub '${ProjectName}-${EnvironmentName}-moderation-dlq'
       MessageRetentionPeriod: 1209600
-
   ModerationQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -1232,7 +697,6 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ModerationDeadLetterQueue.Arn
         maxReceiveCount: 5
-
   ModerationWorkerFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -1263,7 +727,6 @@ Resources:
             Fn::ImportValue: !Sub '${InfrastructureStackName}-DatabaseName'
           DB_SECRET_ARN:
             Fn::ImportValue: !Sub '${InfrastructureStackName}-DatabaseSecretArn'
-
   ModerationEventSource:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
@@ -1272,14 +735,12 @@ Resources:
       BatchSize: 5
       FunctionResponseTypes:
         - ReportBatchItemFailures
-
   CompanyReviewsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref CompanyResource
       PathPart: reviews
-
   CompanyReviewsPostMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1296,7 +757,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   CompanyReviewsGetMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1312,7 +772,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   CompanyReviewsOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1336,51 +795,42 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-  # ADMIN MODERATION ROUTES
-
   AdminResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !GetAtt FairWorkApi.RootResourceId
       PathPart: 'admin'
-
   AdminReviewsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref AdminResource
       PathPart: 'reviews'
-
   AdminFlaggedResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref AdminReviewsResource
       PathPart: 'flagged'
-
   AdminReviewIdResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref AdminReviewsResource
       PathPart: '{reviewId}'
-
   AdminApproveResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref AdminReviewIdResource
       PathPart: 'approve'
-
   AdminRejectResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref AdminReviewIdResource
       PathPart: 'reject'
-
   AdminFlaggedGetMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1395,7 +845,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   AdminApprovePostMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1410,7 +859,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   AdminRejectPostMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1425,7 +873,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   AdminFlaggedOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1449,7 +896,6 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
   AdminApproveOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1473,7 +919,6 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
   AdminRejectOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1497,25 +942,18 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-  # ===========================================================================
-  # ADMIN COMPANY MANAGEMENT
-  # ===========================================================================
-
   AdminCompaniesResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref AdminResource
       PathPart: companies
-
   AdminCompanyIdResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref AdminCompaniesResource
       PathPart: '{companyId}'
-
   AdminCompaniesPostMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1530,7 +968,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   AdminCompanyPatchMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1545,7 +982,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   AdminCompanyDeleteMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1560,7 +996,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   AdminCompaniesOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1584,7 +1019,6 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
   AdminCompanyIdOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1608,25 +1042,18 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-  # ===========================================================================
-  # EMPLOYEE REVIEW HISTORY
-  # ===========================================================================
-
   EmployeeResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !GetAtt FairWorkApi.RootResourceId
       PathPart: employee
-
   EmployeeReviewsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref EmployeeResource
       PathPart: reviews
-
   EmployeeReviewsGetMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1641,7 +1068,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   EmployeeReviewsOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1667,25 +1093,18 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-  # ===========================================================================
-  # EMPLOYEE WELLBEING CHECK-IN
-  # ===========================================================================
-
   EmployeeWellbeingResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref EmployeeResource
       PathPart: wellbeing
-
   EmployeeWellbeingCheckinsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref EmployeeWellbeingResource
       PathPart: checkins
-
   EmployeeWellbeingCheckinsPostMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1700,7 +1119,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   EmployeeWellbeingCheckinsOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1726,16 +1144,12 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-  # ===========================================================================
-  # EMPLOYEE WELLBEING INSIGHTS
   EmployeeWellbeingInsightsResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref FairWorkApi
       ParentId: !Ref EmployeeWellbeingResource
       PathPart: insights
-
   EmployeeWellbeingInsightsGetMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1750,7 +1164,6 @@ Resources:
         Uri: !Sub
           - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
           - LambdaArn: !GetAtt ApiFunction.Arn
-
   EmployeeWellbeingInsightsOptionsMethod:
     Type: AWS::ApiGateway::Method
     Properties:
@@ -1776,34 +1189,21 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-
-  # ===========================================================================
-  # API DEPLOYMENT
-  # ===========================================================================
-
   FairWorkApiDeploymentInsightsV1:
     Type: AWS::ApiGateway::Deployment
-
     DependsOn:
-
       - HealthGetMethod
       - HealthOptionsMethod
-
       - ProfileGetMethod
       - ProfileOptionsMethod
-
       - CompaniesGetMethod
       - CompaniesOptionsMethod
-
       - CompanyGetMethod
       - CompanyOptionsMethod
-
       - WorkplaceAssociationsGetMethod
       - WorkplaceAssociationsOptionsMethod
-
       - WorkplaceAssociationVerifyPostMethod
       - WorkplaceAssociationVerifyOptionsMethod
-
       - VerificationCodesPostMethod
       - VerificationCodesOptionsMethod
       - CompanyReviewsPostMethod
@@ -1826,177 +1226,82 @@ Resources:
       - EmployeeWellbeingCheckinsOptionsMethod
       - EmployeeWellbeingInsightsGetMethod
       - EmployeeWellbeingInsightsOptionsMethod
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       Description:
         !Sub 'FairWork Pulse deployment ${DeploymentVersion}'
-
-
-  # ===========================================================================
-  # API STAGE
-  # ===========================================================================
-
   FairWorkApiStage:
     Type: AWS::ApiGateway::Stage
-
     Properties:
-
       RestApiId:
         !Ref FairWorkApi
-
       DeploymentId:
         !Ref FairWorkApiDeploymentInsightsV1
-
       StageName:
         !Ref ApiStageName
-
       Description: FairWork Pulse PoC API stage.
-
-
-# =============================================================================
-# OUTPUTS
-# =============================================================================
-
 Outputs:
-
-  # ===========================================================================
-  # MIGRATION
-  # ===========================================================================
-
   MigrationFunctionName:
-
     Description: Database Migration Lambda name.
-
     Value:
       !Ref MigrationFunction
-
-
   MigrationFunctionArn:
-
     Description: Database Migration Lambda ARN.
-
     Value:
       !GetAtt MigrationFunction.Arn
-
-
-  # ===========================================================================
-  # API LAMBDA
-  # ===========================================================================
-
   ApiFunctionName:
-
     Description: FairWork Pulse API Lambda name.
-
     Value:
       !Ref ApiFunction
-
-
   ApiFunctionArn:
-
     Description: FairWork Pulse API Lambda ARN.
-
     Value:
       !GetAtt ApiFunction.Arn
-
-
-  # ===========================================================================
-  # API GATEWAY
-  # ===========================================================================
-
   ApiId:
-
     Description: API Gateway REST API ID.
-
     Value:
       !Ref FairWorkApi
-
-
   ApiBaseUrl:
-
     Description: FairWork Pulse API base URL.
-
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}'
-
-
   HealthUrl:
-
     Description: Public API health endpoint.
-
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/health'
-
-
   ProfileUrl:
-
     Description: Cognito protected profile endpoint.
-
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/profile'
-
-
   CompaniesUrl:
-
     Description: Cognito protected companies endpoint.
-
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/companies'
-
-
   WorkplaceAssociationsUrl:
-
     Description: Cognito protected workplace associations endpoint.
-
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/workplace-associations'
-
-
   WorkplaceAssociationVerifyUrl:
-
     Description: Employee workplace verification-code redemption endpoint.
-
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/workplace-associations/verify'
-
-
   VerificationCodesUrlTemplate:
-
     Description: >
       Cognito protected verification code generation endpoint.
       Replace {companyId} with the target company ID.
-
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/companies/{companyId}/verification-codes'
-
-
-  # ===========================================================================
-  # COGNITO
-  # ===========================================================================
-
   UserPoolId:
-
     Description: Cognito User Pool ID.
-
     Value:
       !Ref FairWorkUserPool
-
-
   UserPoolClientId:
-
     Description: Cognito application client ID.
-
     Value:
       !Ref FairWorkUserPoolClient
-
-
   UserPoolArn:
-
     Description: Cognito User Pool ARN.
-
     Value:
       !GetAtt FairWorkUserPool.Arn
   ModerationQueueUrl:

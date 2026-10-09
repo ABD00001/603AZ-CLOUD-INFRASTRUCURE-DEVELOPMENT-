@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  FairWork Pulse Stack 2 - Application services.
+  Application services.
   Deploys database migrations, Cognito authentication,
   API Gateway REST API and the FairWork Pulse API Lambda.
 Parameters:
@@ -1285,7 +1285,58 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: true
             method.response.header.Access-Control-Allow-Methods: true
             method.response.header.Access-Control-Allow-Origin: true
-  FairWorkApiDeploymentEmployerReviewsV1:
+  EmployerReviewIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref EmployerReviewsResource
+      PathPart: '{reviewId}'
+  EmployerReviewResponseResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref EmployerReviewIdResource
+      PathPart: response
+  EmployerReviewResponsePostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref EmployerReviewResponseResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref FairWorkCognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt ApiFunction.Arn
+  EmployerReviewResponseOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref EmployerReviewResponseResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: '{}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+  FairWorkApiDeploymentEmployerResponseV1:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
       - HealthGetMethod
@@ -1326,6 +1377,8 @@ Resources:
       - EmployerCompanyOptionsMethod
       - EmployerReviewsGetMethod
       - EmployerReviewsOptionsMethod
+      - EmployerReviewResponsePostMethod
+      - EmployerReviewResponseOptionsMethod
     Properties:
       RestApiId:
         !Ref FairWorkApi
@@ -1337,7 +1390,7 @@ Resources:
       RestApiId:
         !Ref FairWorkApi
       DeploymentId:
-        !Ref FairWorkApiDeploymentEmployerReviewsV1
+        !Ref FairWorkApiDeploymentEmployerResponseV1
       StageName:
         !Ref ApiStageName
       Description: FairWork Pulse PoC API stage.

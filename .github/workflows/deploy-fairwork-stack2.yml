@@ -134,6 +134,7 @@ jobs:
             "lambda/api/routes/employeeReviews.js"
             "lambda/api/routes/wellbeing.js"
             "lambda/api/routes/wellbeingInsights.js"
+            "lambda/api/routes/employerCompany.js"
             "lambda/worker/index.js"
             "lambda/worker/package.json"
             "lambda/worker/dictionaries.json"

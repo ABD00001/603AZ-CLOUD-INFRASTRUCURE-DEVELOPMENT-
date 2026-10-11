@@ -1275,7 +1275,53 @@ Resources:
             ResponseTemplates:
               application/json: '{}'
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
-  FairWorkApiDeploymentEmployerAnalyticsV1:
+  EmployerDashboardResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref EmployerResource
+      PathPart: dashboard
+  EmployerDashboardOverviewResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ParentId: !Ref EmployerDashboardResource
+      PathPart: overview
+  EmployerDashboardOverviewGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref EmployerDashboardOverviewResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref FairWorkCognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+          - LambdaArn: !GetAtt ApiFunction.Arn
+  EmployerDashboardOverviewOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResourceId: !Ref EmployerDashboardOverviewResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: '{}'
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
+  FairWorkApiDeploymentEmployerDashboardV1:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
       - HealthGetMethod
@@ -1320,6 +1366,8 @@ Resources:
       - EmployerReviewResponseOptionsMethod
       - EmployerWellbeingAnalyticsGetMethod
       - EmployerWellbeingAnalyticsOptionsMethod
+      - EmployerDashboardOverviewGetMethod
+      - EmployerDashboardOverviewOptionsMethod
     Properties:
       RestApiId:
         !Ref FairWorkApi
@@ -1331,7 +1379,7 @@ Resources:
       RestApiId:
         !Ref FairWorkApi
       DeploymentId:
-        !Ref FairWorkApiDeploymentEmployerAnalyticsV1
+        !Ref FairWorkApiDeploymentEmployerDashboardV1
       StageName:
         !Ref ApiStageName
 Outputs:
@@ -1371,6 +1419,9 @@ Outputs:
   VerificationCodesUrlTemplate:
     Value:
       !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/companies/{companyId}/verification-codes'
+  EmployerDashboardOverviewUrl:
+    Value:
+      !Sub 'https://${FairWorkApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${ApiStageName}/employer/dashboard/overview'
   UserPoolId:
     Value:
       !Ref FairWorkUserPool

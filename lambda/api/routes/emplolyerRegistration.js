@@ -56,16 +56,20 @@ async function handleRedeemEmployerCode(event) {
 
   const claims = event.requestContext?.authorizer?.claims;
 
-  if (claims?.email_verified !== true &&
-      claims?.email_verified !== 'true') {
+  if (
+    claims?.email_verified !== true &&
+    claims?.email_verified !== 'true'
+  ) {
     return response(403, {
       success: false,
       message: 'Please verify your email first.'
     });
   }
 
-  if (user.groups.includes('ADMIN') ||
-      user.groups.includes('EMPLOYER')) {
+  if (
+    user.groups.includes('ADMIN') ||
+    user.groups.includes('EMPLOYER')
+  ) {
     return response(403, {
       success: false,
       message: 'This account is not eligible for employer registration.'
@@ -108,9 +112,15 @@ async function handleRedeemEmployerCode(event) {
     await db.beginTransaction();
 
     // Lock the code to prevent concurrent redemption.
+    // Include created_by to identify the admin who generated it.
     const [codes] = await db.execute(
-      `SELECT code_id, company_id, status,
-              expires_at, used_by_user_id
+      `SELECT
+          code_id,
+          company_id,
+          status,
+          expires_at,
+          used_by_user_id,
+          created_by
        FROM employer_registration_codes
        WHERE code_hash = ?
        FOR UPDATE`,
@@ -119,6 +129,7 @@ async function handleRedeemEmployerCode(event) {
 
     if (!codes.length) {
       await db.rollback();
+
       return response(400, {
         success: false,
         message: 'Invalid registration code.'
@@ -149,6 +160,7 @@ async function handleRedeemEmployerCode(event) {
 
     if (profile.account_status !== 'ACTIVE') {
       await db.rollback();
+
       return response(403, {
         success: false,
         message: 'Your account is not active.'
@@ -164,6 +176,7 @@ async function handleRedeemEmployerCode(event) {
 
     if (!retry && registration.status !== 'UNUSED') {
       await db.rollback();
+
       return response(409, {
         success: false,
         message: 'This code has already been used or revoked.'
@@ -178,6 +191,7 @@ async function handleRedeemEmployerCode(event) {
 
       if (!Number(expiry[0].valid)) {
         await db.rollback();
+
         return response(410, {
           success: false,
           message: 'This registration code has expired.'
@@ -194,6 +208,7 @@ async function handleRedeemEmployerCode(event) {
 
     if (!companies.length) {
       await db.rollback();
+
       return response(403, {
         success: false,
         message: 'The company is unavailable.'
@@ -210,9 +225,12 @@ async function handleRedeemEmployerCode(event) {
       [profile.user_id]
     );
 
-    if (employeeLinks.length ||
-        user.groups.includes('EMPLOYEE')) {
+    if (
+      employeeLinks.length ||
+      user.groups.includes('EMPLOYEE')
+    ) {
       await db.rollback();
+
       return response(403, {
         success: false,
         message: 'Use a separate account for employer registration.'
@@ -227,10 +245,13 @@ async function handleRedeemEmployerCode(event) {
       [profile.user_id]
     );
 
-    if (existingAccess.some(
-      row => Number(row.company_id) !== companyId
-    )) {
+    if (
+      existingAccess.some(
+        row => Number(row.company_id) !== companyId
+      )
+    ) {
       await db.rollback();
+
       return response(409, {
         success: false,
         message: 'Account already linked to another company.'
@@ -267,7 +288,9 @@ async function handleRedeemEmployerCode(event) {
 
   } catch (error) {
     if (db && !committed) {
-      try { await db.rollback(); } catch (_) {}
+      try {
+        await db.rollback();
+      } catch (_) {}
     }
 
     console.error('Employer redemption database error:', {
@@ -281,13 +304,15 @@ async function handleRedeemEmployerCode(event) {
     });
 
   } finally {
-    if (db) await db.end();
+    if (db) {
+      await db.end();
+    }
   }
 
   // Cognito is a separate service, so this step
   // happens after the RDS transaction.
   try {
-    const result = await cognito.send(
+    await cognito.send(
       new AdminAddUserToGroupCommand({
         UserPoolId: userPoolId,
         Username: user.cognitoSub,

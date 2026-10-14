@@ -22,6 +22,7 @@
    POST   /workplace-associations/verify
 
    POST   /companies/{companyId}/verification-codes
+   POST   /admin/companies/{companyId}/employer-codes
 
    POST   /companies/{companyId}/reviews
    GET    /companies/{companyId}/reviews
@@ -85,12 +86,16 @@ const {
 
 
 // =============================================================================
-// EMPLOYER VERIFICATION CODE ROUTES
+// VERIFICATION CODE ROUTES
 // =============================================================================
 
 const {
   handleGenerateVerificationCodes
 } = require('./routes/verificationCodes');
+
+const {
+  handleGenerateEmployerCodes
+} = require('./routes/adminEmployerCodes');
 
 
 // =============================================================================
@@ -107,21 +112,46 @@ const {
 // EMPLOYEE REVIEW HISTORY
 // =============================================================================
 
-const { handleGetEmployeeReviews } = require('./routes/employeeReviews');
+const {
+  handleGetEmployeeReviews
+} = require('./routes/employeeReviews');
 
 
 // =============================================================================
 // EMPLOYEE WELLBEING CHECK-IN
 // =============================================================================
 
-const { handleCreateWellbeingCheckin } = require('./routes/wellbeing');
-const { handleGetWellbeingInsights } = require('./routes/wellbeingInsights');
-const { handleGetEmployerCompany } = require('./routes/employerCompany');
-const { handleGetEmployerReviews } = require('./routes/employerReviews');
-const { handleGetEmployerDashboardOverview } = require('./routes/employerDashboardOverview');
-const { handleGetAdminDashboardOverview } = require('./routes/adminDashboardOverview');
-const { handleGetEmployerWellbeingAnalytics } = require('./routes/employerWellbeingAnalytics');
-const { handleCreateEmployerResponse } = require('./routes/employerResponses');
+const {
+  handleCreateWellbeingCheckin
+} = require('./routes/wellbeing');
+
+const {
+  handleGetWellbeingInsights
+} = require('./routes/wellbeingInsights');
+
+const {
+  handleGetEmployerCompany
+} = require('./routes/employerCompany');
+
+const {
+  handleGetEmployerReviews
+} = require('./routes/employerReviews');
+
+const {
+  handleGetEmployerDashboardOverview
+} = require('./routes/employerDashboardOverview');
+
+const {
+  handleGetAdminDashboardOverview
+} = require('./routes/adminDashboardOverview');
+
+const {
+  handleGetEmployerWellbeingAnalytics
+} = require('./routes/employerWellbeingAnalytics');
+
+const {
+  handleCreateEmployerResponse
+} = require('./routes/employerResponses');
 
 
 // =============================================================================
@@ -283,6 +313,18 @@ exports.handler = async (event) => {
 
 
     // ------------------------------------------------------------------------
+    // POST /admin/companies/{companyId}/employer-codes
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'POST' &&
+      path === '/admin/companies/{companyId}/employer-codes'
+    ) {
+      return await handleGenerateEmployerCodes(event);
+    }
+
+
+    // ------------------------------------------------------------------------
     // POST /companies/{companyId}/reviews
     // ------------------------------------------------------------------------
 
@@ -310,7 +352,10 @@ exports.handler = async (event) => {
     // GET /employee/reviews
     // ------------------------------------------------------------------------
 
-    if (method === 'GET' && path === '/employee/reviews') {
+    if (
+      method === 'GET' &&
+      path === '/employee/reviews'
+    ) {
       return await handleGetEmployeeReviews(event);
     }
 
@@ -319,44 +364,101 @@ exports.handler = async (event) => {
     // POST /employee/wellbeing/checkins
     // ------------------------------------------------------------------------
 
-    if (method === 'POST' && path === '/employee/wellbeing/checkins') {
+    if (
+      method === 'POST' &&
+      path === '/employee/wellbeing/checkins'
+    ) {
       return await handleCreateWellbeingCheckin(event);
     }
 
 
     // ------------------------------------------------------------------------
     // GET /employee/wellbeing/insights
-    if (method === 'GET' && path === '/employee/wellbeing/insights') {
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'GET' &&
+      path === '/employee/wellbeing/insights'
+    ) {
       return await handleGetWellbeingInsights(event);
     }
 
+
     // ------------------------------------------------------------------------
-    if (method === 'POST' && path === '/employer/reviews/{reviewId}/response') {
+    // POST /employer/reviews/{reviewId}/response
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'POST' &&
+      path === '/employer/reviews/{reviewId}/response'
+    ) {
       return await handleCreateEmployerResponse(event);
     }
 
-    if (method === 'GET' && path === '/employer/dashboard/overview') {
+
+    // ------------------------------------------------------------------------
+    // GET /employer/dashboard/overview
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'GET' &&
+      path === '/employer/dashboard/overview'
+    ) {
       return await handleGetEmployerDashboardOverview(event);
     }
 
-    if (method === 'GET' && path === '/employer/analytics/wellbeing') {
+
+    // ------------------------------------------------------------------------
+    // GET /employer/analytics/wellbeing
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'GET' &&
+      path === '/employer/analytics/wellbeing'
+    ) {
       return await handleGetEmployerWellbeingAnalytics(event);
     }
 
-    if (method === 'GET' && path === '/employer/reviews') {
+
+    // ------------------------------------------------------------------------
+    // GET /employer/reviews
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'GET' &&
+      path === '/employer/reviews'
+    ) {
       return await handleGetEmployerReviews(event);
     }
 
-    if (method === 'GET' && path === '/employer/company') {
+
+    // ------------------------------------------------------------------------
+    // GET /employer/company
+    // ------------------------------------------------------------------------
+
+    if (
+      method === 'GET' &&
+      path === '/employer/company'
+    ) {
       return await handleGetEmployerCompany(event);
     }
 
-    // GET /admin/reviews/flagged
+
+    // ------------------------------------------------------------------------
+    // GET /admin/dashboard/overview
     // ------------------------------------------------------------------------
 
-    if (method === 'GET' && path === '/admin/dashboard/overview') {
+    if (
+      method === 'GET' &&
+      path === '/admin/dashboard/overview'
+    ) {
       return await handleGetAdminDashboardOverview(event);
     }
+
+
+    // ------------------------------------------------------------------------
+    // GET /admin/reviews/flagged
+    // ------------------------------------------------------------------------
 
     if (
       method === 'GET' &&

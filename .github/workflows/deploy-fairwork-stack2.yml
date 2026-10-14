@@ -200,8 +200,12 @@ jobs:
         run: |
           set -euo pipefail
           echo "Validating ${TEMPLATE_FILE}..."
+          TEMPLATE_KEY="cloudformation/stack2/${GITHUB_SHA}/$(basename "${TEMPLATE_FILE}")"
+          ARTIFACT_BUCKET="${{ steps.infrastructure.outputs.artifact_bucket }}"
+          aws s3 cp "${TEMPLATE_FILE}" "s3://${ARTIFACT_BUCKET}/${TEMPLATE_KEY}" \
+            --region "${AWS_REGION}"
           aws cloudformation validate-template \
-            --template-body "file://${TEMPLATE_FILE}" \
+            --template-url "https://${ARTIFACT_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${TEMPLATE_KEY}" \
             --region "${AWS_REGION}"
           echo "CloudFormation template is valid."
       # ======================================================================
@@ -511,6 +515,8 @@ jobs:
           aws cloudformation deploy \
             --stack-name "${APPLICATION_STACK_NAME}" \
             --template-file "${TEMPLATE_FILE}" \
+            --s3-bucket "${{ steps.infrastructure.outputs.artifact_bucket }}" \
+            --s3-prefix "cloudformation/stack2" \
             --region "${AWS_REGION}" \
             --parameter-overrides \
               InfrastructureStackName="${INFRASTRUCTURE_STACK_NAME}" \

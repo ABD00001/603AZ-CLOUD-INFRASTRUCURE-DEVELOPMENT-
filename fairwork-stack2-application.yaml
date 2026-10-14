@@ -623,6 +623,40 @@ Resources:
         - StatusCode: 200
           ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'PATCH,DELETE,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
+  AdminEmployerCodesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref 'FairWorkApi'
+      ParentId: !Ref 'AdminCompanyIdResource'
+      PathPart: employer-codes
+  AdminEmployerCodesPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref 'FairWorkApi'
+      ResourceId: !Ref 'AdminEmployerCodesResource'
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref 'FairWorkCognitoAuthorizer'
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+        - 'arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations'
+        - {LambdaArn: !GetAtt 'ApiFunction.Arn'}
+  AdminEmployerCodesOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref 'FairWorkApi'
+      ResourceId: !Ref 'AdminEmployerCodesResource'
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates: {application/json: '{"statusCode":200}'}
+        IntegrationResponses:
+        - StatusCode: 200
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+      MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   EmployeeResource:
     Type: AWS::ApiGateway::Resource
     Properties: {RestApiId: !Ref 'FairWorkApi', ParentId: !GetAtt 'FairWorkApi.RootResourceId', PathPart: employee}
@@ -928,6 +962,8 @@ Resources:
     - AdminCompanyDeleteMethod
     - AdminCompaniesOptionsMethod
     - AdminCompanyIdOptionsMethod
+    - AdminEmployerCodesPostMethod
+    - AdminEmployerCodesOptionsMethod
     - EmployeeReviewsGetMethod
     - EmployeeReviewsOptionsMethod
     - EmployeeWellbeingCheckinsPostMethod

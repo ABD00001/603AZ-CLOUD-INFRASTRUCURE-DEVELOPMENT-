@@ -6,121 +6,86 @@
  FairWork Pulse - API Lambda Entry Point
 ===============================================================================
 
- Purpose:
-   Receives requests from API Gateway and routes them to the appropriate
-   FairWork Pulse API handler.
-
  Routes:
-
    GET    /health
    GET    /profile
-
    GET    /companies
    GET    /companies/{companyId}
-
    GET    /workplace-associations
    POST   /workplace-associations/verify
-
    POST   /companies/{companyId}/verification-codes
    POST   /admin/companies/{companyId}/employer-codes
-
+   POST   /employer/registration/redeem
    POST   /companies/{companyId}/reviews
    GET    /companies/{companyId}/reviews
-
+   GET    /employee/reviews
+   POST   /employee/wellbeing/checkins
+   GET    /employee/wellbeing/insights
+   GET    /employer/company
+   GET    /employer/reviews
+   GET    /employer/dashboard/overview
+   GET    /employer/analytics/wellbeing
+   POST   /employer/reviews/{reviewId}/response
+   GET    /admin/dashboard/overview
    GET    /admin/reviews/flagged
    POST   /admin/reviews/{reviewId}/approve
    POST   /admin/reviews/{reviewId}/reject
-
    POST   /admin/companies
    PATCH  /admin/companies/{companyId}
    DELETE /admin/companies/{companyId}
 
- Security:
-   - Authentication and authorization are enforced by API Gateway,
-     Cognito and the individual route handlers.
-   - Admin operations require Cognito ADMIN group membership.
-   - Sensitive database and AWS errors are not returned to clients.
-   - Employee identity must never be exposed through public review APIs.
-   - Company deletion is implemented as soft deletion.
-
 ===============================================================================
 */
 
-
-// =============================================================================
-// HEALTH ROUTES
-// =============================================================================
-
+// HEALTH
 const {
   handleHealth
 } = require('./routes/health');
 
-
-// =============================================================================
-// USER PROFILE ROUTES
-// =============================================================================
-
+// USER PROFILE
 const {
   handleGetProfile
 } = require('./routes/profile');
 
-
-// =============================================================================
-// PUBLIC COMPANY ROUTES
-// =============================================================================
-
+// COMPANIES
 const {
   handleGetCompanies,
   handleGetCompany
 } = require('./routes/companies');
 
-
-// =============================================================================
-// WORKPLACE ASSOCIATION ROUTES
-// =============================================================================
-
+// WORKPLACE ASSOCIATIONS
 const {
   handleGetWorkplaceAssociations,
   handleVerifyWorkplaceAssociation
 } = require('./routes/workplace');
 
-
-// =============================================================================
-// VERIFICATION CODE ROUTES
-// =============================================================================
-
+// VERIFICATION CODES
 const {
   handleGenerateVerificationCodes
 } = require('./routes/verificationCodes');
 
+// ADMIN EMPLOYER CODE GENERATION
 const {
   handleGenerateEmployerCodes
 } = require('./routes/adminEmployerCodes');
 
+// NEW: EMPLOYER REGISTRATION
+const {
+  handleRedeemEmployerCode
+} = require('./routes/employerRegistration');
 
-// =============================================================================
-// WORKPLACE REVIEW ROUTES
-// =============================================================================
-
+// REVIEWS
 const {
   handleCreateReview,
   handleGetPublishedReviews
 } = require('./routes/reviews');
 
-
-// =============================================================================
-// EMPLOYEE REVIEW HISTORY
-// =============================================================================
-
+// EMPLOYEE REVIEWS
 const {
   handleGetEmployeeReviews
 } = require('./routes/employeeReviews');
 
-
-// =============================================================================
-// EMPLOYEE WELLBEING CHECK-IN
-// =============================================================================
-
+// EMPLOYEE WELLBEING
 const {
   handleCreateWellbeingCheckin
 } = require('./routes/wellbeing');
@@ -129,6 +94,7 @@ const {
   handleGetWellbeingInsights
 } = require('./routes/wellbeingInsights');
 
+// EMPLOYER
 const {
   handleGetEmployerCompany
 } = require('./routes/employerCompany');
@@ -142,10 +108,6 @@ const {
 } = require('./routes/employerDashboardOverview');
 
 const {
-  handleGetAdminDashboardOverview
-} = require('./routes/adminDashboardOverview');
-
-const {
   handleGetEmployerWellbeingAnalytics
 } = require('./routes/employerWellbeingAnalytics');
 
@@ -153,71 +115,50 @@ const {
   handleCreateEmployerResponse
 } = require('./routes/employerResponses');
 
+// ADMIN DASHBOARD
+const {
+  handleGetAdminDashboardOverview
+} = require('./routes/adminDashboardOverview');
 
-// =============================================================================
-// ADMIN MODERATION ROUTES
-// =============================================================================
-
+// ADMIN MODERATION
 const {
   handleGetFlaggedReviews,
   handleApproveReview,
   handleRejectReview
 } = require('./routes/adminModeration');
 
-
-// =============================================================================
-// ADMIN COMPANY MANAGEMENT ROUTES
-// =============================================================================
-
+// ADMIN COMPANY MANAGEMENT
 const {
   handleCreateCompany,
   handleUpdateCompany,
   handleDeleteCompany
 } = require('./routes/adminCompanies');
 
-
-// =============================================================================
 // RESPONSE UTILITY
-// =============================================================================
-
 const {
   response
 } = require('./utils/response');
 
-
-// =============================================================================
 // REQUEST INFORMATION
-// =============================================================================
-
 function getHttpMethod(event) {
-
   return (
     event.httpMethod ||
     event.requestContext?.http?.method ||
     ''
   ).toUpperCase();
-
 }
 
-
 function getPath(event) {
-
   return (
     event.resource ||
     event.rawPath ||
     event.path ||
     '/'
   );
-
 }
 
-
-// =============================================================================
 // MAIN HANDLER
-// =============================================================================
-
 exports.handler = async (event) => {
-
   const method = getHttpMethod(event);
   const path = getPath(event);
 
@@ -228,45 +169,20 @@ exports.handler = async (event) => {
 
   try {
 
-    // ------------------------------------------------------------------------
-    // GET /health
-    // ------------------------------------------------------------------------
-
-    if (
-      method === 'GET' &&
-      path === '/health'
-    ) {
+    // HEALTH
+    if (method === 'GET' && path === '/health') {
       return await handleHealth();
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /profile
-    // ------------------------------------------------------------------------
-
-    if (
-      method === 'GET' &&
-      path === '/profile'
-    ) {
+    // PROFILE
+    if (method === 'GET' && path === '/profile') {
       return await handleGetProfile(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /companies
-    // ------------------------------------------------------------------------
-
-    if (
-      method === 'GET' &&
-      path === '/companies'
-    ) {
+    // COMPANIES
+    if (method === 'GET' && path === '/companies') {
       return await handleGetCompanies();
     }
-
-
-    // ------------------------------------------------------------------------
-    // GET /companies/{companyId}
-    // ------------------------------------------------------------------------
 
     if (
       method === 'GET' &&
@@ -275,22 +191,13 @@ exports.handler = async (event) => {
       return await handleGetCompany(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /workplace-associations
-    // ------------------------------------------------------------------------
-
+    // WORKPLACE ASSOCIATIONS
     if (
       method === 'GET' &&
       path === '/workplace-associations'
     ) {
       return await handleGetWorkplaceAssociations(event);
     }
-
-
-    // ------------------------------------------------------------------------
-    // POST /workplace-associations/verify
-    // ------------------------------------------------------------------------
 
     if (
       method === 'POST' &&
@@ -299,11 +206,7 @@ exports.handler = async (event) => {
       return await handleVerifyWorkplaceAssociation(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // POST /companies/{companyId}/verification-codes
-    // ------------------------------------------------------------------------
-
+    // EMPLOYEE VERIFICATION CODES
     if (
       method === 'POST' &&
       path === '/companies/{companyId}/verification-codes'
@@ -311,11 +214,7 @@ exports.handler = async (event) => {
       return await handleGenerateVerificationCodes(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // POST /admin/companies/{companyId}/employer-codes
-    // ------------------------------------------------------------------------
-
+    // ADMIN GENERATES EMPLOYER CODES
     if (
       method === 'POST' &&
       path === '/admin/companies/{companyId}/employer-codes'
@@ -323,22 +222,21 @@ exports.handler = async (event) => {
       return await handleGenerateEmployerCodes(event);
     }
 
+    // NEW: EMPLOYER REDEEMS REGISTRATION CODE
+    if (
+      method === 'POST' &&
+      path === '/employer/registration/redeem'
+    ) {
+      return await handleRedeemEmployerCode(event);
+    }
 
-    // ------------------------------------------------------------------------
-    // POST /companies/{companyId}/reviews
-    // ------------------------------------------------------------------------
-
+    // COMPANY REVIEWS
     if (
       method === 'POST' &&
       path === '/companies/{companyId}/reviews'
     ) {
       return await handleCreateReview(event);
     }
-
-
-    // ------------------------------------------------------------------------
-    // GET /companies/{companyId}/reviews
-    // ------------------------------------------------------------------------
 
     if (
       method === 'GET' &&
@@ -347,11 +245,7 @@ exports.handler = async (event) => {
       return await handleGetPublishedReviews(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /employee/reviews
-    // ------------------------------------------------------------------------
-
+    // EMPLOYEE REVIEWS
     if (
       method === 'GET' &&
       path === '/employee/reviews'
@@ -359,22 +253,13 @@ exports.handler = async (event) => {
       return await handleGetEmployeeReviews(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // POST /employee/wellbeing/checkins
-    // ------------------------------------------------------------------------
-
+    // EMPLOYEE WELLBEING
     if (
       method === 'POST' &&
       path === '/employee/wellbeing/checkins'
     ) {
       return await handleCreateWellbeingCheckin(event);
     }
-
-
-    // ------------------------------------------------------------------------
-    // GET /employee/wellbeing/insights
-    // ------------------------------------------------------------------------
 
     if (
       method === 'GET' &&
@@ -383,11 +268,7 @@ exports.handler = async (event) => {
       return await handleGetWellbeingInsights(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // POST /employer/reviews/{reviewId}/response
-    // ------------------------------------------------------------------------
-
+    // EMPLOYER RESPONSE TO REVIEW
     if (
       method === 'POST' &&
       path === '/employer/reviews/{reviewId}/response'
@@ -395,11 +276,7 @@ exports.handler = async (event) => {
       return await handleCreateEmployerResponse(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /employer/dashboard/overview
-    // ------------------------------------------------------------------------
-
+    // EMPLOYER DASHBOARD
     if (
       method === 'GET' &&
       path === '/employer/dashboard/overview'
@@ -407,11 +284,7 @@ exports.handler = async (event) => {
       return await handleGetEmployerDashboardOverview(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /employer/analytics/wellbeing
-    // ------------------------------------------------------------------------
-
+    // EMPLOYER WELLBEING ANALYTICS
     if (
       method === 'GET' &&
       path === '/employer/analytics/wellbeing'
@@ -419,11 +292,7 @@ exports.handler = async (event) => {
       return await handleGetEmployerWellbeingAnalytics(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /employer/reviews
-    // ------------------------------------------------------------------------
-
+    // EMPLOYER REVIEWS
     if (
       method === 'GET' &&
       path === '/employer/reviews'
@@ -431,11 +300,7 @@ exports.handler = async (event) => {
       return await handleGetEmployerReviews(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /employer/company
-    // ------------------------------------------------------------------------
-
+    // EMPLOYER COMPANY
     if (
       method === 'GET' &&
       path === '/employer/company'
@@ -443,11 +308,7 @@ exports.handler = async (event) => {
       return await handleGetEmployerCompany(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /admin/dashboard/overview
-    // ------------------------------------------------------------------------
-
+    // ADMIN DASHBOARD
     if (
       method === 'GET' &&
       path === '/admin/dashboard/overview'
@@ -455,22 +316,13 @@ exports.handler = async (event) => {
       return await handleGetAdminDashboardOverview(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // GET /admin/reviews/flagged
-    // ------------------------------------------------------------------------
-
+    // ADMIN MODERATION
     if (
       method === 'GET' &&
       path === '/admin/reviews/flagged'
     ) {
       return await handleGetFlaggedReviews(event);
     }
-
-
-    // ------------------------------------------------------------------------
-    // POST /admin/reviews/{reviewId}/approve
-    // ------------------------------------------------------------------------
 
     if (
       method === 'POST' &&
@@ -479,11 +331,6 @@ exports.handler = async (event) => {
       return await handleApproveReview(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // POST /admin/reviews/{reviewId}/reject
-    // ------------------------------------------------------------------------
-
     if (
       method === 'POST' &&
       path === '/admin/reviews/{reviewId}/reject'
@@ -491,22 +338,13 @@ exports.handler = async (event) => {
       return await handleRejectReview(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // POST /admin/companies
-    // ------------------------------------------------------------------------
-
+    // ADMIN COMPANY MANAGEMENT
     if (
       method === 'POST' &&
       path === '/admin/companies'
     ) {
       return await handleCreateCompany(event);
     }
-
-
-    // ------------------------------------------------------------------------
-    // PATCH /admin/companies/{companyId}
-    // ------------------------------------------------------------------------
 
     if (
       method === 'PATCH' &&
@@ -515,11 +353,6 @@ exports.handler = async (event) => {
       return await handleUpdateCompany(event);
     }
 
-
-    // ------------------------------------------------------------------------
-    // DELETE /admin/companies/{companyId}
-    // ------------------------------------------------------------------------
-
     if (
       method === 'DELETE' &&
       path === '/admin/companies/{companyId}'
@@ -527,11 +360,7 @@ exports.handler = async (event) => {
       return await handleDeleteCompany(event);
     }
 
-
-    // ------------------------------------------------------------------------
     // UNKNOWN ROUTE
-    // ------------------------------------------------------------------------
-
     return response(404, {
       success: false,
       message: 'Route not found.'
@@ -549,7 +378,5 @@ exports.handler = async (event) => {
       success: false,
       message: 'An internal server error occurred.'
     });
-
   }
-
 };

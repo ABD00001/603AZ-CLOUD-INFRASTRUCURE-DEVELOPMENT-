@@ -410,6 +410,11 @@ async function moderate(connection, reviewId) {
       `${review.review_title || ''} ${review.review_text || ''}`
     );
 
+    // Privacy safeguard: recognise likely contact numbers even when the
+    // configured UK-mobile regex is too strict for a partial number.
+    // Do not log or persist the matched number itself.
+    const contactNumberDetected = /(?<![\p{L}\p{N}])(?:\+44|0044|0)\s*[-(). ]*\d(?:[\d\s().-]*\d){7,12}(?!\d)/u.test(content);
+
     const hits = [];
 
     let rawScore = 0;
@@ -457,7 +462,9 @@ async function moderate(connection, reviewId) {
 
     const score = Math.min(rawScore, 100);
 
-    const flagged = critical || score >= 25;
+    // Flag potential phone numbers even if no database rule matches.
+    // The original configured rules and scoring remain unchanged.
+    const flagged = contactNumberDetected || critical || score >= 25;
 
     const status = flagged
       ? 'FLAGGED'
@@ -517,8 +524,8 @@ async function moderate(connection, reviewId) {
     -------------------------------------------------------- */
 
     const reason = hits.length
-      ? hits.map(rule => rule.rule_code).join(', ').slice(0, 500)
-      : 'No configured rule matches';
+      ? [...hits.map(rule => rule.rule_code), ...(contactNumberDetected ? ['PII_POSSIBLE_PHONE_NUMBER'] : [])].join(', ').slice(0, 500)
+      : (contactNumberDetected ? 'PII_POSSIBLE_PHONE_NUMBER' : 'No configured rule matches');
 
     /* --------------------------------------------------------
        Update review status

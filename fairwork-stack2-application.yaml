@@ -117,6 +117,7 @@ Resources:
           MODERATION_QUEUE_URL: !Ref 'ModerationQueue'
           ALLOWED_ORIGIN: !Ref 'AllowedOrigin'
           DEPLOYMENT_VERSION: !Ref 'DeploymentVersion'
+          COGNITO_USER_POOL_ID: !Ref 'FairWorkUserPool'
       Tags:
       - {Key: Project, Value: FairWorkPulse}
       - {Key: Environment, Value: !Ref 'EnvironmentName'}

@@ -47,8 +47,7 @@ async function handleGetEmployerDashboardOverview(event) {
       JOIN employer_company_access e ON e.user_id = u.user_id
       JOIN companies c ON c.company_id = e.company_id
       WHERE u.cognito_sub = ? AND u.account_status = 'ACTIVE'
-        AND e.status = 'ACTIVE' AND e.revoked_at IS NULL
-        AND c.status = 'ACTIVE' AND c.company_id = ?
+        AND e.status = 'ACTIVE' AND e.revoked_at IS NULL AND c.company_id = ?
       LIMIT 1
     `, [user.cognitoSub, companyId]);
     if (!access.length) {

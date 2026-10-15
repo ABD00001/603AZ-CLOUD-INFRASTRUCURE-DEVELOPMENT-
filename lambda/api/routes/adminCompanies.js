@@ -481,10 +481,65 @@ async function handleDeleteAdminCompany(event) {
 }
 
 // =============================================================================
+// GET /admin/companies - include inactive companies for administrators
+// =============================================================================
+async function handleGetAdminCompanies(event) {
+  const auth = requireAdmin(event);
+  if (auth.error) return auth.error;
+  const connection = await getDatabaseConnection();
+  try {
+    const admin = await getAdminProfile(connection, auth.user.cognitoSub);
+    if (!admin) return response(403, { success: false, message: 'Active administrator profile required.' });
+    const [companies] = await connection.execute(
+      `SELECT company_id AS companyId, name, industry, location, description,
+              website, status, created_at AS createdAt, updated_at AS updatedAt
+       FROM companies ORDER BY name ASC`
+    );
+    return response(200, { success: true, count: companies.length, companies });
+  } finally {
+    await connection.end();
+  }
+}
+
+// =============================================================================
+// PATCH /admin/companies/{companyId}/reactivate
+// =============================================================================
+async function handleReactivateAdminCompany(event) {
+  const auth = requireAdmin(event);
+  if (auth.error) return auth.error;
+  const companyId = companyIdFrom(event);
+  if (!companyId) return response(400, { success: false, message: 'Invalid company ID.' });
+  const connection = await getDatabaseConnection();
+  try {
+    const admin = await getAdminProfile(connection, auth.user.cognitoSub);
+    if (!admin) return response(403, { success: false, message: 'Active administrator profile required.' });
+    const [result] = await connection.execute(
+      `UPDATE companies SET status = 'ACTIVE' WHERE company_id = ? AND status = 'INACTIVE'`,
+      [companyId]
+    );
+    if (!result.affectedRows) {
+      const existing = await fetchCompany(connection, companyId);
+      return existing
+        ? response(409, { success: false, message: 'Company is already active.' })
+        : response(404, { success: false, message: 'Company not found.' });
+    }
+    console.log('Admin company reactivated', { companyId, adminUserId: admin.user_id });
+    return response(200, {
+      success: true, message: 'Company reactivated successfully.',
+      company: await fetchCompany(connection, companyId)
+    });
+  } finally {
+    await connection.end();
+  }
+}
+
+// =============================================================================
 // EXPORTS - MATCHES index.js
 // =============================================================================
 
 module.exports = {
+  handleGetAdminCompanies,
+  handleReactivateAdminCompany,
   handleCreateCompany: handleCreateAdminCompany,
   handleUpdateCompany: handleUpdateAdminCompany,
   handleDeleteCompany: handleDeleteAdminCompany

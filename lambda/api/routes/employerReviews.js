@@ -26,7 +26,6 @@ async function handleGetEmployerReviews(event) {
       JOIN companies c ON c.company_id = e.company_id
       WHERE u.cognito_sub = ? AND u.account_status = 'ACTIVE'
         AND e.status = 'ACTIVE' AND e.revoked_at IS NULL
-        AND c.status = 'ACTIVE'
       ORDER BY c.company_id`, [user.cognitoSub]);
     if (!companies.length) return response(403, { success: false, message: 'No active company access.' });
     let company;

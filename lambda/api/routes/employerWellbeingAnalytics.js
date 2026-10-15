@@ -84,7 +84,6 @@ async function handleGetEmployerWellbeingAnalytics(event) {
         AND u.account_status = 'ACTIVE'
         AND e.status = 'ACTIVE'
         AND e.revoked_at IS NULL
-        AND c.status = 'ACTIVE'
       ORDER BY c.company_id
     `, [user.cognitoSub]);
 

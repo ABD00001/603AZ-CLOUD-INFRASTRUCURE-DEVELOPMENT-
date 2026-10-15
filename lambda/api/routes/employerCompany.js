@@ -19,7 +19,6 @@ async function handleGetEmployerCompany(event) {
       INNER JOIN companies c ON c.company_id = e.company_id
       WHERE u.cognito_sub = ? AND u.account_status = 'ACTIVE'
         AND e.status = 'ACTIVE' AND e.revoked_at IS NULL
-        AND c.status = 'ACTIVE'
       ORDER BY c.company_id ASC`, [user.cognitoSub]);
     return response(200, { success: true, count: rows.length, companies: rows,
       company: rows.length === 1 ? rows[0] : null });

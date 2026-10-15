@@ -35,8 +35,7 @@ async function handleCreateEmployerResponse(event) {
       JOIN companies c ON c.company_id = r.company_id
       JOIN employer_company_access eca ON eca.company_id = c.company_id AND eca.status = 'ACTIVE'
       JOIN user_profiles u ON u.user_id = eca.user_id
-      WHERE r.review_id = ? AND r.moderation_status IN ('CLEAN', 'HUMAN_APPROVED')
-        AND c.status = 'ACTIVE' AND u.cognito_sub = ? AND u.account_status = 'ACTIVE'
+      WHERE r.review_id = ? AND r.moderation_status IN ('CLEAN', 'HUMAN_APPROVED') AND u.cognito_sub = ? AND u.account_status = 'ACTIVE'
       LIMIT 1`, [reviewId, user.cognitoSub]);
     if (!eligible.length) {
       return response(403, { success: false, message: 'Review unavailable or company access denied.' });

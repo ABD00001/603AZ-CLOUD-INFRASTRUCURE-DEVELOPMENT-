@@ -22,7 +22,7 @@ env:
 
   API_STAGE_NAME: poc
 
-  ALLOWED_ORIGIN: http://localhost:3000
+  ALLOWED_ORIGIN: http://fairwork-pulse-frontend.s3-website-us-east-1.amazonaws.com
 
 
 jobs:

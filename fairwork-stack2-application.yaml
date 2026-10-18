@@ -14,7 +14,7 @@ Parameters:
   WorkerLambdaS3Key: {Type: String}
   DeploymentVersion: {Type: String, Default: manual}
   ApiStageName: {Type: String, Default: poc}
-  AllowedOrigin: {Type: String, Default: 'http://localhost:3000'}
+  AllowedOrigin: {Type: String, Default: 'http://fairwork-pulse-frontend.s3-website-us-east-1.amazonaws.com'}
   LogRetentionDays:
     Type: Number
     Default: 14

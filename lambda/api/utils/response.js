@@ -1,51 +1,43 @@
-'use strict';
 
+'use strict';
 
 // =============================================================================
 // CORS
 // =============================================================================
 
-const ALLOWED_ORIGIN =
-  process.env.ALLOWED_ORIGIN ||
-  'http://localhost:3000';
-
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://fairwork-pulse-frontend.s3-website-us-east-1.amazonaws.com'
+];
 
 // =============================================================================
 // API RESPONSE
 // =============================================================================
 
-function response(
-  statusCode,
-  body
-) {
+function response(statusCode, body, requestOrigin) {
 
-  return {
+  const headers = {
+    'Content-Type': 'application/json',
 
-    statusCode,
+    'Access-Control-Allow-Headers':
+      'Content-Type,Authorization',
 
-    headers: {
+    'Access-Control-Allow-Methods':
+      'GET,POST,PUT,PATCH,DELETE,OPTIONS',
 
-      'Content-Type':
-        'application/json',
-
-      'Access-Control-Allow-Origin':
-        ALLOWED_ORIGIN,
-
-      'Access-Control-Allow-Headers':
-        'Content-Type,Authorization',
-
-      'Access-Control-Allow-Methods':
-        'GET,POST,PUT,PATCH,DELETE,OPTIONS'
-
-    },
-
-    body:
-      JSON.stringify(body)
-
+    'Vary': 'Origin'
   };
 
-}
+  if (ALLOWED_ORIGINS.includes(requestOrigin)) {
+    headers['Access-Control-Allow-Origin'] = requestOrigin;
+  }
 
+  return {
+    statusCode,
+    headers,
+    body: JSON.stringify(body)
+  };
+}
 
 module.exports = {
   response

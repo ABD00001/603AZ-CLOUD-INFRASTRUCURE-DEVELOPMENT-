@@ -1070,6 +1070,110 @@ Resources:
           ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
           ResponseTemplates: {application/json: '{}'}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
+  # Monitoring additions: SNS alerts and CloudWatch alarms (no application changes)
+  FairWorkSecurityAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-${EnvironmentName}-security-alerts'
+      DisplayName: 'FairWork Pulse Alerts'
+
+  FairWorkApiLambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${EnvironmentName}-api-lambda-errors'
+      AlarmDescription: 'Unhandled API Lambda invocation errors within five minutes'
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ApiFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref FairWorkSecurityAlertsTopic
+
+  FairWorkModerationWorkerErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${EnvironmentName}-moderation-worker-errors'
+      AlarmDescription: 'Unhandled moderation worker invocation errors within five minutes'
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ModerationWorkerFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref FairWorkSecurityAlertsTopic
+
+  FairWorkModerationDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${EnvironmentName}-moderation-dlq-messages'
+      AlarmDescription: 'Failed review moderation messages are present in the dead-letter queue'
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ModerationDeadLetterQueue.QueueName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref FairWorkSecurityAlertsTopic
+
+  FairWorkApiGateway5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${EnvironmentName}-api-gateway-5xx'
+      AlarmDescription: 'API Gateway server-side 5XX responses within five minutes'
+      Namespace: AWS/ApiGateway
+      MetricName: 5XXError
+      Dimensions:
+        - Name: ApiName
+          Value: !Sub '${ProjectName}-${EnvironmentName}-api'
+        - Name: Stage
+          Value: !Ref ApiStageName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref FairWorkSecurityAlertsTopic
+
+  FairWorkModerationQueueDelayAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${EnvironmentName}-moderation-queue-delay'
+      AlarmDescription: 'Oldest queued moderation message is more than five minutes old'
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ModerationQueue.QueueName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 300
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref FairWorkSecurityAlertsTopic
+
 Outputs:
   MigrationFunctionName: {Value: !Ref 'MigrationFunction'}
   MigrationFunctionArn: {Value: !GetAtt 'MigrationFunction.Arn'}

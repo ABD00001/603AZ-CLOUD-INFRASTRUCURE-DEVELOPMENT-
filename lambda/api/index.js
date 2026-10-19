@@ -10,31 +10,6 @@
    Receives requests from API Gateway and routes them to the appropriate
    FairWork Pulse API handler.
 
- Routes:
-
-   GET    /health
-   GET    /profile
-
-   GET    /companies
-   GET    /companies/{companyId}
-
-   GET    /workplace-associations
-   POST   /workplace-associations/verify
-
-   POST   /companies/{companyId}/verification-codes
-   POST   /admin/companies/{companyId}/employer-codes
-
-   POST   /companies/{companyId}/reviews
-   GET    /companies/{companyId}/reviews
-
-   GET    /admin/reviews/flagged
-   POST   /admin/reviews/{reviewId}/approve
-   POST   /admin/reviews/{reviewId}/reject
-
-   POST   /admin/companies
-   PATCH  /admin/companies/{companyId}
-   DELETE /admin/companies/{companyId}
-
  Security:
    - Authentication and authorization are enforced by API Gateway,
      Cognito and the individual route handlers.
@@ -42,6 +17,12 @@
    - Sensitive database and AWS errors are not returned to clients.
    - Employee identity must never be exposed through public review APIs.
    - Company deletion is implemented as soft deletion.
+
+ CORS:
+   - Supports the local development frontend.
+   - Supports the deployed S3 frontend.
+   - Validates the request Origin before returning CORS headers.
+   - Applies CORS consistently to Lambda route responses.
 
 ===============================================================================
 */
@@ -118,7 +99,7 @@ const {
 
 
 // =============================================================================
-// EMPLOYEE WELLBEING CHECK-IN
+// EMPLOYEE WELLBEING ROUTES
 // =============================================================================
 
 const {
@@ -128,6 +109,11 @@ const {
 const {
   handleGetWellbeingInsights
 } = require('./routes/wellbeingInsights');
+
+
+// =============================================================================
+// EMPLOYER ROUTES
+// =============================================================================
 
 const {
   handleGetEmployerCompany
@@ -142,16 +128,21 @@ const {
 } = require('./routes/employerDashboardOverview');
 
 const {
-  handleGetAdminDashboardOverview
-} = require('./routes/adminDashboardOverview');
-
-const {
   handleGetEmployerWellbeingAnalytics
 } = require('./routes/employerWellbeingAnalytics');
 
 const {
   handleCreateEmployerResponse
 } = require('./routes/employerResponses');
+
+
+// =============================================================================
+// ADMIN DASHBOARD ROUTES
+// =============================================================================
+
+const {
+  handleGetAdminDashboardOverview
+} = require('./routes/adminDashboardOverview');
 
 
 // =============================================================================
@@ -215,10 +206,78 @@ function getPath(event) {
 
 
 // =============================================================================
-// MAIN HANDLER
+// CORS CONFIGURATION
 // =============================================================================
 
-exports.handler = async (event) => {
+const ALLOWED_ORIGINS = new Set([
+
+  'http://localhost:3000',
+
+  'http://fairwork-pulse-frontend.s3-website-us-east-1.amazonaws.com'
+
+]);
+
+
+// =============================================================================
+// CENTRALIZED CORS RESPONSE HANDLING
+// =============================================================================
+
+function addCorsHeaders(result, event) {
+
+  const requestOrigin =
+    event.headers?.origin ||
+    event.headers?.Origin ||
+    '';
+
+  // Preserve the route handler's existing response.
+  const headers = {
+    ...(result?.headers || {})
+  };
+
+  // Remove existing CORS origin headers.
+  // The validated origin will be added below.
+  for (const headerName of Object.keys(headers)) {
+
+    if (
+      headerName.toLowerCase() ===
+      'access-control-allow-origin'
+    ) {
+
+      delete headers[headerName];
+
+    }
+
+  }
+
+  headers['Access-Control-Allow-Headers'] =
+    'Content-Type,Authorization';
+
+  headers['Access-Control-Allow-Methods'] =
+    'GET,POST,PUT,PATCH,DELETE,OPTIONS';
+
+  headers['Vary'] = 'Origin';
+
+  // Only approved frontend origins receive CORS permission.
+  if (ALLOWED_ORIGINS.has(requestOrigin)) {
+
+    headers['Access-Control-Allow-Origin'] =
+      requestOrigin;
+
+  }
+
+  return {
+    ...result,
+    headers
+  };
+
+}
+
+
+// =============================================================================
+// ROUTE REQUEST
+// =============================================================================
+
+async function routeRequest(event) {
 
   const method = getHttpMethod(event);
   const path = getPath(event);
@@ -238,7 +297,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/health'
     ) {
+
       return await handleHealth();
+
     }
 
 
@@ -250,7 +311,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/profile'
     ) {
+
       return await handleGetProfile(event);
+
     }
 
 
@@ -262,7 +325,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/companies'
     ) {
+
       return await handleGetCompanies();
+
     }
 
 
@@ -274,7 +339,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/companies/{companyId}'
     ) {
+
       return await handleGetCompany(event);
+
     }
 
 
@@ -286,7 +353,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/workplace-associations'
     ) {
+
       return await handleGetWorkplaceAssociations(event);
+
     }
 
 
@@ -298,7 +367,9 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/workplace-associations/verify'
     ) {
+
       return await handleVerifyWorkplaceAssociation(event);
+
     }
 
 
@@ -310,7 +381,9 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/companies/{companyId}/verification-codes'
     ) {
+
       return await handleGenerateVerificationCodes(event);
+
     }
 
 
@@ -322,7 +395,9 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/admin/companies/{companyId}/employer-codes'
     ) {
+
       return await handleGenerateEmployerCodes(event);
+
     }
 
 
@@ -334,7 +409,9 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/companies/{companyId}/reviews'
     ) {
+
       return await handleCreateReview(event);
+
     }
 
 
@@ -346,7 +423,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/companies/{companyId}/reviews'
     ) {
+
       return await handleGetPublishedReviews(event);
+
     }
 
 
@@ -358,7 +437,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/employee/reviews'
     ) {
+
       return await handleGetEmployeeReviews(event);
+
     }
 
 
@@ -370,7 +451,9 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/employee/wellbeing/checkins'
     ) {
+
       return await handleCreateWellbeingCheckin(event);
+
     }
 
 
@@ -382,7 +465,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/employee/wellbeing/insights'
     ) {
+
       return await handleGetWellbeingInsights(event);
+
     }
 
 
@@ -394,7 +479,9 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/employer/reviews/{reviewId}/response'
     ) {
+
       return await handleCreateEmployerResponse(event);
+
     }
 
 
@@ -406,7 +493,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/employer/dashboard/overview'
     ) {
+
       return await handleGetEmployerDashboardOverview(event);
+
     }
 
 
@@ -418,7 +507,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/employer/analytics/wellbeing'
     ) {
+
       return await handleGetEmployerWellbeingAnalytics(event);
+
     }
 
 
@@ -430,7 +521,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/employer/reviews'
     ) {
+
       return await handleGetEmployerReviews(event);
+
     }
 
 
@@ -442,7 +535,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/employer/company'
     ) {
+
       return await handleGetEmployerCompany(event);
+
     }
 
 
@@ -454,7 +549,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/admin/dashboard/overview'
     ) {
+
       return await handleGetAdminDashboardOverview(event);
+
     }
 
 
@@ -466,7 +563,9 @@ exports.handler = async (event) => {
       method === 'GET' &&
       path === '/admin/reviews/flagged'
     ) {
+
       return await handleGetFlaggedReviews(event);
+
     }
 
 
@@ -478,7 +577,9 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/admin/reviews/{reviewId}/approve'
     ) {
+
       return await handleApproveReview(event);
+
     }
 
 
@@ -490,23 +591,39 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/admin/reviews/{reviewId}/reject'
     ) {
+
       return await handleRejectReview(event);
+
     }
 
 
     // ------------------------------------------------------------------------
     // GET /admin/companies
     // ------------------------------------------------------------------------
-    if (method === 'GET' && path === '/admin/companies') {
+
+    if (
+      method === 'GET' &&
+      path === '/admin/companies'
+    ) {
+
       return await handleGetAdminCompanies(event);
+
     }
+
 
     // ------------------------------------------------------------------------
     // PATCH /admin/companies/{companyId}/reactivate
     // ------------------------------------------------------------------------
-    if (method === 'PATCH' && path === '/admin/companies/{companyId}/reactivate') {
+
+    if (
+      method === 'PATCH' &&
+      path === '/admin/companies/{companyId}/reactivate'
+    ) {
+
       return await handleReactivateAdminCompany(event);
+
     }
+
 
     // ------------------------------------------------------------------------
     // POST /admin/companies
@@ -516,7 +633,9 @@ exports.handler = async (event) => {
       method === 'POST' &&
       path === '/admin/companies'
     ) {
+
       return await handleCreateCompany(event);
+
     }
 
 
@@ -528,7 +647,9 @@ exports.handler = async (event) => {
       method === 'PATCH' &&
       path === '/admin/companies/{companyId}'
     ) {
+
       return await handleUpdateCompany(event);
+
     }
 
 
@@ -540,7 +661,9 @@ exports.handler = async (event) => {
       method === 'DELETE' &&
       path === '/admin/companies/{companyId}'
     ) {
+
       return await handleDeleteCompany(event);
+
     }
 
 
@@ -565,6 +688,38 @@ exports.handler = async (event) => {
       success: false,
       message: 'An internal server error occurred.'
     });
+
+  }
+
+}
+
+
+// =============================================================================
+// MAIN LAMBDA ENTRY POINT
+// =============================================================================
+
+exports.handler = async (event) => {
+
+  try {
+
+    const result = await routeRequest(event);
+
+    return addCorsHeaders(result, event);
+
+  } catch (error) {
+
+    console.error(
+      'FairWork API unexpected error:',
+      error
+    );
+
+    return addCorsHeaders(
+      response(500, {
+        success: false,
+        message: 'An internal server error occurred.'
+      }),
+      event
+    );
 
   }
 

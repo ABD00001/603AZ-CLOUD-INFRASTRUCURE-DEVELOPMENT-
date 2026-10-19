@@ -19,8 +19,10 @@
    - Company deletion is implemented as soft deletion.
 
  CORS:
-   - Supports the local development frontend.
-   - Supports the deployed S3 frontend.
+   - Supports local development frontends.
+   - Supports the previous S3 frontend.
+   - Supports the deployed AWS Amplify frontend.
+   - Supports the CloudFormation ALLOWED_ORIGIN environment variable.
    - Validates the request Origin before returning CORS headers.
    - Applies CORS consistently to Lambda route responses.
 
@@ -211,9 +213,20 @@ function getPath(event) {
 
 const ALLOWED_ORIGINS = new Set([
 
+  // Local development
   'http://localhost:3000',
+  'http://localhost:3001',
 
-  'http://fairwork-pulse-frontend.s3-website-us-east-1.amazonaws.com'
+  // Previous S3 frontend
+  'http://fairwork-pulse-frontend.s3-website-us-east-1.amazonaws.com',
+
+  // Production AWS Amplify frontend
+  'https://main.d3gj60hs80y0r0.amplifyapp.com',
+
+  // Origin configured by CloudFormation
+  ...(process.env.ALLOWED_ORIGIN
+    ? [process.env.ALLOWED_ORIGIN.trim()]
+    : [])
 
 ]);
 

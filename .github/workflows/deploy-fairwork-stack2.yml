@@ -692,9 +692,14 @@ jobs:
             cat cors-headers.txt
             # API Gateway MOCK preflight returns '*'; the API Lambda
             # validates the origin on actual API responses.
-            grep -Eiq '^access-control-allow-origin: \*\r?$' cors-headers.txt
-            grep -Eiq '^access-control-allow-methods: .*GET' cors-headers.txt
-            grep -Eiq '^access-control-allow-headers: .*Authorization' cors-headers.txt
+            
+            # Normalize HTTP header line endings
+            tr -d '\r' < cors-headers.txt > cors-headers-clean.txt
+
+            grep -Fqi 'access-control-allow-origin: *' cors-headers-clean.txt
+            grep -Eiq 'access-control-allow-methods: .*GET' cors-headers-clean.txt
+            grep -Eiq 'access-control-allow-headers: .*Authorization' cors-headers-clean.txt
+
 
             echo "Checking actual GET response origin..."
             curl --fail --show-error --silent \

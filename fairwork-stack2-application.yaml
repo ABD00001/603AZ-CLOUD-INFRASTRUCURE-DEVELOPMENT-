@@ -14,7 +14,7 @@ Parameters:
   WorkerLambdaS3Key: {Type: String}
   DeploymentVersion: {Type: String, Default: manual}
   ApiStageName: {Type: String, Default: poc}
-  AllowedOrigin: {Type: String, Default: 'http://fairwork-pulse-frontend.s3-website-us-east-1.amazonaws.com'}
+  AllowedOrigin: {Type: String, Default: 'https://main.d3gj60hs80y0r0.amplifyapp.com'}
   LogRetentionDays:
     Type: Number
     Default: 14
@@ -131,6 +131,26 @@ Resources:
       Name: !Sub '${ProjectName}-${EnvironmentName}-api'
       EndpointConfiguration:
         Types: [REGIONAL]
+  # Return CORS headers even when API Gateway rejects a request before Lambda runs.
+  # Authorization remains enforced by the existing Cognito authorizer.
+  ApiGatewayDefault4xxCors:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResponseType: DEFAULT_4XX
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+  ApiGatewayDefault5xxCors:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      RestApiId: !Ref FairWorkApi
+      ResponseType: DEFAULT_5XX
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
   FairWorkCognitoAuthorizer:
     Type: AWS::ApiGateway::Authorizer
     Properties:

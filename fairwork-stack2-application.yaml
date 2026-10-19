@@ -167,7 +167,7 @@ Resources:
         RequestTemplates: {application/json: "{\n  \"statusCode\": 200\n}\n"}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   ProfileResource:
     Type: AWS::ApiGateway::Resource
@@ -198,7 +198,7 @@ Resources:
         RequestTemplates: {application/json: "{\n  \"statusCode\": 200\n}\n"}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   CompaniesResource:
     Type: AWS::ApiGateway::Resource
@@ -229,7 +229,7 @@ Resources:
         RequestTemplates: {application/json: "{\n  \"statusCode\": 200\n}\n"}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   CompanyResource:
     Type: AWS::ApiGateway::Resource
@@ -261,7 +261,7 @@ Resources:
         RequestTemplates: {application/json: "{\n  \"statusCode\": 200\n}\n"}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   VerificationCodesResource:
     Type: AWS::ApiGateway::Resource
@@ -293,7 +293,7 @@ Resources:
         RequestTemplates: {application/json: "{\n  \"statusCode\": 200\n}\n"}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   WorkplaceAssociationsResource:
     Type: AWS::ApiGateway::Resource
@@ -324,7 +324,7 @@ Resources:
         RequestTemplates: {application/json: "{\n  \"statusCode\": 200\n}\n"}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   WorkplaceAssociationVerifyResource:
     Type: AWS::ApiGateway::Resource
@@ -355,7 +355,7 @@ Resources:
         RequestTemplates: {application/json: "{\n  \"statusCode\": 200\n}\n"}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   ApiGatewayInvokePermission:
     Type: AWS::Lambda::Permission
@@ -444,7 +444,7 @@ Resources:
         RequestTemplates: {application/json: '{"statusCode":200}'}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminResource:
     Type: AWS::ApiGateway::Resource
@@ -518,7 +518,7 @@ Resources:
         RequestTemplates: {application/json: '{"statusCode":200}'}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminApproveOptionsMethod:
     Type: AWS::ApiGateway::Method
@@ -532,7 +532,7 @@ Resources:
         RequestTemplates: {application/json: '{"statusCode":200}'}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminRejectOptionsMethod:
     Type: AWS::ApiGateway::Method
@@ -546,7 +546,7 @@ Resources:
         RequestTemplates: {application/json: '{"statusCode":200}'}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminCompaniesResource:
     Type: AWS::ApiGateway::Resource
@@ -597,7 +597,7 @@ Resources:
         RequestTemplates: {application/json: '{"statusCode":200}'}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'PATCH,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'PATCH,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminCompaniesPostMethod:
     Type: AWS::ApiGateway::Method
@@ -653,7 +653,7 @@ Resources:
         RequestTemplates: {application/json: '{"statusCode":200}'}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminCompanyIdOptionsMethod:
     Type: AWS::ApiGateway::Method
@@ -667,7 +667,7 @@ Resources:
         RequestTemplates: {application/json: '{"statusCode":200}'}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'PATCH,DELETE,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'PATCH,DELETE,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   AdminEmployerCodesResource:
     Type: AWS::ApiGateway::Resource
@@ -701,7 +701,7 @@ Resources:
         RequestTemplates: {application/json: '{"statusCode":200}'}
         IntegrationResponses:
         - StatusCode: 200
-          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"}
+          ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'", method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
   EmployeeResource:
     Type: AWS::ApiGateway::Resource
@@ -977,7 +977,7 @@ Resources:
           ResponseParameters: {method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'", method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'", method.response.header.Access-Control-Allow-Origin: "'*'"}
           ResponseTemplates: {application/json: '{}'}
       MethodResponses: [{StatusCode: 200, ResponseParameters: {method.response.header.Access-Control-Allow-Headers: true, method.response.header.Access-Control-Allow-Methods: true, method.response.header.Access-Control-Allow-Origin: true}}]
-  ApiDeployAdminV1:
+  ApiDeployCorsV2:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
     - HealthGetMethod
@@ -1034,7 +1034,7 @@ Resources:
     Properties: {RestApiId: !Ref 'FairWorkApi', Description: !Sub 'FairWork Pulse deployment ${DeploymentVersion}'}
   FairWorkApiStage:
     Type: AWS::ApiGateway::Stage
-    Properties: {RestApiId: !Ref 'FairWorkApi', DeploymentId: !Ref 'ApiDeployAdminV1', StageName: !Ref 'ApiStageName'}
+    Properties: {RestApiId: !Ref 'FairWorkApi', DeploymentId: !Ref 'ApiDeployCorsV2', StageName: !Ref 'ApiStageName'}
   AdminDashRoot:
     Type: AWS::ApiGateway::Resource
     Properties: {RestApiId: !Ref 'FairWorkApi', ParentId: !Ref 'AdminResource', PathPart: dashboard}

@@ -22,7 +22,7 @@ env:
 
   API_STAGE_NAME: poc
 
-  ALLOWED_ORIGIN: http://fairwork-pulse-frontend.s3-website-us-east-1.amazonaws.com
+  ALLOWED_ORIGIN: ALLOWED_ORIGIN: https://main.d3gj60hs80y0r0.amplifyapp.com
 
 
 jobs:

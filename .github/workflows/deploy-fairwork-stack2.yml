@@ -676,26 +676,37 @@ jobs:
         run: |
           set -euo pipefail
           HEALTH_URL="${{ steps.application.outputs.health_url }}"
-          echo "Testing CORS preflight..."
-          curl \
-            --fail \
-            --show-error \
-            --silent \
-            --request OPTIONS \
-            --header "Origin: ${ALLOWED_ORIGIN}" \
-            --header "Access-Control-Request-Method: GET" \
-            --header "Access-Control-Request-Headers: Authorization" \
-            --dump-header cors-headers.txt \
-            --output /dev/null \
-            "${HEALTH_URL}"
-          echo
-          echo "CORS response headers:"
-          cat cors-headers.txt
-          grep -qi \
-            "access-control-allow-origin: ${ALLOWED_ORIGIN}" \
-            cors-headers.txt
-          echo
-          echo "CORS preflight passed."
+          echo "Testing preflight for local and deployed frontends..."
+          for ORIGIN in \
+            "http://localhost:3000" \
+            "${ALLOWED_ORIGIN}"; do
+            echo "Testing Origin: ${ORIGIN}"
+            curl --fail --show-error --silent \
+              --request OPTIONS \
+              --header "Origin: ${ORIGIN}" \
+              --header "Access-Control-Request-Method: GET" \
+              --header "Access-Control-Request-Headers: Authorization" \
+              --dump-header cors-headers.txt \
+              --output /dev/null \
+              "${HEALTH_URL}"
+            cat cors-headers.txt
+            # API Gateway MOCK preflight returns '*'; the API Lambda
+            # validates the origin on actual API responses.
+            grep -Eiq '^access-control-allow-origin: \*\r?$' cors-headers.txt
+            grep -Eiq '^access-control-allow-methods: .*GET' cors-headers.txt
+            grep -Eiq '^access-control-allow-headers: .*Authorization' cors-headers.txt
+
+            echo "Checking actual GET response origin..."
+            curl --fail --show-error --silent \
+              --header "Origin: ${ORIGIN}" \
+              --dump-header cors-get-headers.txt \
+              --output /dev/null \
+              "${HEALTH_URL}"
+            cat cors-get-headers.txt
+            grep -Fqi "access-control-allow-origin: ${ORIGIN}" cors-get-headers.txt
+          done
+          echo "CORS checks passed for both frontends."
+      # ======================================================================
       # ======================================================================
       # 25. DISPLAY STACK OUTPUTS
       # ======================================================================

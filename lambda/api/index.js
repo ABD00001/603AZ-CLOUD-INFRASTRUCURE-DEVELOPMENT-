@@ -10,22 +10,6 @@
    Receives requests from API Gateway and routes them to the appropriate
    FairWork Pulse API handler.
 
- Security:
-   - Authentication and authorization are enforced by API Gateway,
-     Cognito and the individual route handlers.
-   - Admin operations require Cognito ADMIN group membership.
-   - Sensitive database and AWS errors are not returned to clients.
-   - Employee identity must never be exposed through public review APIs.
-   - Company deletion is implemented as soft deletion.
-
- CORS:
-   - Supports local development frontends.
-   - Supports the previous S3 frontend.
-   - Supports the deployed AWS Amplify frontend.
-   - Supports the CloudFormation ALLOWED_ORIGIN environment variable.
-   - Validates the request Origin before returning CORS headers.
-   - Applies CORS consistently to Lambda route responses.
-
 ===============================================================================
 */
 
